@@ -1,0 +1,3 @@
+[submodule "lib/succulent"]
+	path = lib/succulent
+	url = https://github.com/hatchjaw/succulent
