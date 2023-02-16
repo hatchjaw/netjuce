@@ -8,10 +8,11 @@
 #include <juce_audio_utils/juce_audio_utils.h>
 #include "Constants.h"
 #include "../lib/succulent/MultiChannelAudioSource/MultiChannelAudioSource.h"
+#include "NetAudioServer.h"
 
 class MainComponent : public juce::AudioAppComponent {
 public:
-    MainComponent();
+    explicit MainComponent(const juce::StringArray &audioFiles);
 
     ~MainComponent() override;
 
@@ -23,6 +24,7 @@ public:
 
 private:
     std::unique_ptr<MultiChannelAudioSource> multiChannelSource;
+    std::unique_ptr<NetAudioServer> netServer;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (MainComponent)
 };

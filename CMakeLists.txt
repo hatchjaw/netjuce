@@ -15,12 +15,15 @@ target_sources(NetJUCE
         PRIVATE
         src/Main.cpp
         src/MainComponent.cpp
-        lib/succulent/MultiChannelAudioSource/MultiChannelAudioSource.cpp)
+        lib/succulent/MultiChannelAudioSource/MultiChannelAudioSource.cpp
+        src/NetAudioServer.cpp)
 
 target_compile_definitions(NetJUCE
         PRIVATE
         JUCE_WEB_BROWSER=0
-        JUCE_USE_CURL=0)
+        JUCE_USE_CURL=0
+        JUCE_APPLICATION_NAME_STRING="$<TARGET_PROPERTY:${PROJECT_NAME},JUCE_PRODUCT_NAME>"
+        JUCE_APPLICATION_VERSION_STRING="$<TARGET_PROPERTY:${PROJECT_NAME},JUCE_VERSION>")
 
 target_link_libraries(NetJUCE
         PRIVATE
