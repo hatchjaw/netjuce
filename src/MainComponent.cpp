@@ -4,20 +4,17 @@
 
 #include "MainComponent.h"
 
-MainComponent::MainComponent(const StringArray &audioFiles)
-        : multiChannelSource(std::make_unique<MultiChannelAudioSource>(NUM_SOURCES)) {
+MainComponent::MainComponent(const StringArray &audioFilesToPlay)
+        : multiChannelSource(std::make_unique<MultiChannelAudioSource>(NUM_SOURCES)),
+          netServer(std::make_unique<NetAudioServer>()),
+          audioFiles(audioFilesToPlay) {
     setAudioChannels(0, NUM_SOURCES);
 
-    netServer = std::make_unique<NetAudioServer>("226.6.38.226", 18999, "192.168.10.10", 18999);
-    netServer->connect();
-
-    for (auto i{0}; i < audioFiles.size(); ++i) {
-        auto file{File(audioFiles[i])};
-        if (file.existsAsFile()) {
-            multiChannelSource->addSource(static_cast<uint>(i), file);
-            multiChannelSource->start();
-        }
-    }
+    auto setup{deviceManager.getAudioDeviceSetup()};
+    setup.bufferSize = AUDIO_BLOCK_SAMPLES;
+    setup.useDefaultOutputChannels = false;
+    setup.outputChannels = NUM_SOURCES;
+    deviceManager.setAudioDeviceSetup(setup, true);
 }
 
 MainComponent::~MainComponent() {
@@ -26,13 +23,26 @@ MainComponent::~MainComponent() {
 
 void MainComponent::prepareToPlay(int samplesPerBlockExpected, double sampleRate) {
     multiChannelSource->prepareToPlay(samplesPerBlockExpected, sampleRate);
+    for (auto i{0}; i < audioFiles.size(); ++i) {
+        auto file{File(audioFiles[i])};
+        if (file.existsAsFile()) {
+            multiChannelSource->addSource(static_cast<uint>(i), file);
+            multiChannelSource->start();
+        }
+    }
+
+    netServer->prepareToSend(samplesPerBlockExpected);
 }
 
 void MainComponent::releaseResources() {
     multiChannelSource->releaseResources();
+    netServer->releaseResources();
 }
 
 void MainComponent::getNextAudioBlock(const juce::AudioSourceChannelInfo &bufferToFill) {
     multiChannelSource->getNextAudioBlock(bufferToFill);
-    netServer->send(bufferToFill);
+    if (!netServer->send(bufferToFill)) {
+        DBG("Failed to send UDP packet.");
+        netServer->disconnect();
+    }
 }

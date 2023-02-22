@@ -12,7 +12,7 @@
 
 class MainComponent : public juce::AudioAppComponent {
 public:
-    explicit MainComponent(const juce::StringArray &audioFiles);
+    explicit MainComponent(const juce::StringArray &audioFilesToPlay);
 
     ~MainComponent() override;
 
@@ -25,6 +25,7 @@ public:
 private:
     std::unique_ptr<MultiChannelAudioSource> multiChannelSource;
     std::unique_ptr<NetAudioServer> netServer;
+    juce::StringArray audioFiles;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (MainComponent)
 };

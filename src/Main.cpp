@@ -25,8 +25,6 @@ class Application : public juce::JUCEApplication {
             if (params[i] == "-s") {
                 files.add(params[i + 1]);
                 ++i;
-            } else if (params[i] == "-a") {
-
             }
         }
 
