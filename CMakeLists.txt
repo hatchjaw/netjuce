@@ -9,7 +9,15 @@ find_package(JUCE CONFIG REQUIRED)
 juce_add_console_app(NetJUCE
         PRODUCT_NAME "netjuce")
 
-# juce_generate_juce_header(NetJUCE)
+target_compile_definitions(NetJUCE
+        PRIVATE
+        AUDIO_BLOCK_SAMPLES=32
+        NUM_SOURCES=1
+        DEFAULT_MULTICAST_IP="226.6.38.226"
+        DEFAULT_REMOTE_PORT=18999
+        DEFAULT_LOCAL_ADDRESS="192.168.10.11"
+        DEFAULT_LOCAL_PORT=18999
+)
 
 target_sources(NetJUCE
         PRIVATE

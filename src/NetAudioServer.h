@@ -43,6 +43,10 @@ public:
     void releaseResources();
 
 private:
+    /**
+     * A thread to check periodically whether UDP is connected, and, if not,
+     * attempt to set up a connection.
+     */
     class ConnectorThread : public juce::Thread {
     public:
         ConnectorThread(std::unique_ptr<juce::DatagramSocket> &udpRef,
@@ -57,7 +61,6 @@ private:
 
         void run() override {
             while (!threadShouldExit()) {
-//                connected.store(readFromMeter());
                 if (udp->getBoundPort() < 0 || !connected.load()) {
                     auto bound{udp->bindToPort(*localPort, *localIP)};
                     auto joined{bound && udp->joinMulticast(*multicastIP)};
@@ -82,12 +85,9 @@ private:
     ConnectorThread connectorThread;
 
     const uint kBytesPerSample{2};
-    const int kTimeout{5000};
     std::unique_ptr<juce::DatagramSocket> udp;
     juce::String multicastIP, localIP;
     uint16_t localPort, remotePort;
-//    std::atomic<bool> connected{false};
-//    uint8_t buffer[5]{0xff, 0xff, 0xff, 0xff, 0xff};
     uint8_t buffer[5]{"yolo"};
     uint numChannels;
     std::unique_ptr<ConverterF32I16> converter;

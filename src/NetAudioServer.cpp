@@ -24,6 +24,9 @@ NetAudioServer::~NetAudioServer() {
 }
 
 void NetAudioServer::disconnect() {
+    // When first disconnecting, destroy the UDP object and recreate it.
+    // A DatagramSocket instance that has been shut down cannot be reused
+    // (see DatagramSocket::shutdown()).
     if (connectorThread.connected.load()) {
         udp = std::make_unique<juce::DatagramSocket>();
     }
