@@ -41,32 +41,20 @@ void NetAudioServer::prepareToSend(int samplesPerBlockExpected) {
 
 bool NetAudioServer::send(const juce::AudioSourceChannelInfo &bufferToSend) {
     if (connectorThread.connected.load()) {
-        // Got to convert from float to int16 here.
-        converter->convertSamples(netBuffer,
-                                  bufferToSend.buffer->getReadPointer(0),
-                                  bufferToSend.buffer->getNumSamples());
-        converter->convertSamples(netBuffer + AUDIO_BLOCK_SAMPLES * static_cast<int>(kBytesPerSample),
-                                  bufferToSend.buffer->getReadPointer(1),
-                                  bufferToSend.buffer->getNumSamples());
-
-        // Might need to encode as uint8, rather than simply relying on the converter.
-//    auto size{bufferToSend.buffer->getNumChannels() * bufferToSend.buffer->getNumSamples()};
-//    uint8_t buf[size];
-//    memcpy(buf, &bufferToSend, sizeof bufferToSend);
-
-        if (false) {
-            auto bytesWritten{udp->write(multicastIP, remotePort, buffer, sizeof(buffer))};
-            if (bytesWritten == -1) {
-                DBG(strerror(errno));
-            }
-            return bytesWritten == sizeof(buffer);
-        } else {
-            auto bytesWritten{udp->write(multicastIP, remotePort, netBuffer, bytesPerPacket)};
-            if (bytesWritten == -1) {
-                DBG(strerror(errno));
-            }
-            return bytesWritten == bytesPerPacket;
+        // Convert from float to int16...
+        auto bytesPerSample{static_cast<int>(kBytesPerSample)};
+        for (int ch{0}; ch < bufferToSend.buffer->getNumChannels(); ++ch) {
+            converter->convertSamples(netBuffer + ch * AUDIO_BLOCK_SAMPLES * bytesPerSample,
+                                      bufferToSend.buffer->getReadPointer(ch),
+                                      bufferToSend.buffer->getNumSamples());
         }
+
+        // ...and send.
+        auto bytesWritten{udp->write(multicastIP, remotePort, netBuffer, bytesPerPacket)};
+        if (bytesWritten == -1) {
+            DBG(strerror(errno));
+        }
+        return bytesWritten == bytesPerPacket;
     } else {
         DBG("NetAudioServer is not connected.");
     }

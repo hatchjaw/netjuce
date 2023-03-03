@@ -14,6 +14,14 @@ MainComponent::MainComponent(const StringArray &audioFilesToPlay)
 //    setup.useDefaultOutputChannels = false;
 //    setup.outputChannels = NUM_SOURCES;
     deviceManager.setAudioDeviceSetup(setup, true);
+
+    for (auto i{0}; i < audioFiles.size(); ++i) {
+        auto file{File(audioFiles[i])};
+        if (file.existsAsFile()) {
+            multiChannelSource->addSource(static_cast<uint>(i), file);
+            multiChannelSource->start();
+        }
+    }
 }
 
 MainComponent::~MainComponent() {
@@ -22,14 +30,6 @@ MainComponent::~MainComponent() {
 
 void MainComponent::prepareToPlay(int samplesPerBlockExpected, double sampleRate) {
     multiChannelSource->prepareToPlay(samplesPerBlockExpected, sampleRate);
-    for (auto i{0}; i < audioFiles.size(); ++i) {
-        auto file{File(audioFiles[i])};
-        if (file.existsAsFile()) {
-            multiChannelSource->addSource(static_cast<uint>(i), file);
-            multiChannelSource->start();
-        }
-    }
-
     netServer->prepareToSend(samplesPerBlockExpected);
 }
 
