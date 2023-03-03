@@ -9,11 +9,10 @@ MainComponent::MainComponent(const StringArray &audioFilesToPlay)
           netServer(std::make_unique<NetAudioServer>()),
           audioFiles(audioFilesToPlay) {
     setAudioChannels(0, NUM_SOURCES);
-
     auto setup{deviceManager.getAudioDeviceSetup()};
     setup.bufferSize = AUDIO_BLOCK_SAMPLES;
-    setup.useDefaultOutputChannels = false;
-    setup.outputChannels = NUM_SOURCES;
+//    setup.useDefaultOutputChannels = false;
+//    setup.outputChannels = NUM_SOURCES;
     deviceManager.setAudioDeviceSetup(setup, true);
 }
 

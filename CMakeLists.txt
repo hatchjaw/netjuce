@@ -12,10 +12,10 @@ juce_add_console_app(NetJUCE
 target_compile_definitions(NetJUCE
         PRIVATE
         AUDIO_BLOCK_SAMPLES=32
-        NUM_SOURCES=1
+        NUM_SOURCES=2
         DEFAULT_MULTICAST_IP="226.6.38.226"
         DEFAULT_REMOTE_PORT=18999
-        DEFAULT_LOCAL_ADDRESS="192.168.10.11"
+        DEFAULT_LOCAL_ADDRESS="192.168.10.10"
         DEFAULT_LOCAL_PORT=18999
 )
 

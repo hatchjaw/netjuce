@@ -42,7 +42,11 @@ void NetAudioServer::prepareToSend(int samplesPerBlockExpected) {
 bool NetAudioServer::send(const juce::AudioSourceChannelInfo &bufferToSend) {
     if (connectorThread.connected.load()) {
         // Got to convert from float to int16 here.
-        converter->convertSamples(netBuffer, bufferToSend.buffer->getReadPointer(0),
+        converter->convertSamples(netBuffer,
+                                  bufferToSend.buffer->getReadPointer(0),
+                                  bufferToSend.buffer->getNumSamples());
+        converter->convertSamples(netBuffer + AUDIO_BLOCK_SAMPLES * static_cast<int>(kBytesPerSample),
+                                  bufferToSend.buffer->getReadPointer(1),
                                   bufferToSend.buffer->getNumSamples());
 
         // Might need to encode as uint8, rather than simply relying on the converter.
