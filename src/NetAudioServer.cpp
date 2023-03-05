@@ -33,18 +33,27 @@ void NetAudioServer::disconnect() {
     connectorThread.connected.store(false);
 }
 
-void NetAudioServer::prepareToSend(int samplesPerBlockExpected) {
-    bytesPerPacket = samplesPerBlockExpected * static_cast<int>(numChannels) * static_cast<int>(kBytesPerSample);
+void NetAudioServer::prepareToSend(int samplesPerBlockExpected, double sampleRate) {
+    header.BitResolution = BitResolutionT::BIT16;
+    header.BufferSize = samplesPerBlockExpected;
+    header.NumChannels = NUM_SOURCES;
+    header.SeqNumber = 0;
+    header.SamplingRate = static_cast<int>(sampleRate);
+    bytesPerPacket = static_cast<int>(PACKET_HEADER_SIZE) +
+                     samplesPerBlockExpected * static_cast<int>(numChannels) * static_cast<int>(kBytesPerSample);
     netBuffer = new uint8_t[static_cast<uint>(bytesPerPacket)];
     connectorThread.startThread();
 }
 
 bool NetAudioServer::send(const juce::AudioSourceChannelInfo &bufferToSend) {
     if (connectorThread.connected.load()) {
+        ++header.SeqNumber;
+        memcpy(netBuffer, &header, PACKET_HEADER_SIZE);
+
         // Convert from float to int16...
         auto bytesPerSample{static_cast<int>(kBytesPerSample)};
         for (int ch{0}; ch < bufferToSend.buffer->getNumChannels(); ++ch) {
-            converter->convertSamples(netBuffer + ch * AUDIO_BLOCK_SAMPLES * bytesPerSample,
+            converter->convertSamples(netBuffer + PACKET_HEADER_SIZE + ch * AUDIO_BLOCK_SAMPLES * bytesPerSample,
                                       bufferToSend.buffer->getReadPointer(ch),
                                       bufferToSend.buffer->getNumSamples());
         }

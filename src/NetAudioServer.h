@@ -8,6 +8,7 @@
 #include <juce_core/juce_core.h>
 #include <juce_audio_basics/juce_audio_basics.h>
 #include "Constants.h"
+#include "PacketHeader.h"
 
 using ConverterF32I16 = juce::AudioData::ConverterInstance<
         juce::AudioData::Pointer<
@@ -94,7 +95,7 @@ public:
 
     void disconnect();
 
-    void prepareToSend(int samplesPerBlockExpected);
+    void prepareToSend(int samplesPerBlockExpected, double sampleRate);
 
     bool send(const juce::AudioSourceChannelInfo &bufferToSend);
 
@@ -146,11 +147,11 @@ private:
     std::unique_ptr<juce::DatagramSocket> udp;
     juce::String multicastIP, localIP;
     uint16_t localPort, remotePort;
-    uint8_t buffer[5]{"yolo"};
     uint numChannels;
     std::unique_ptr<ConverterF32I16> converter;
     int bytesPerPacket{0};
     uint8_t *netBuffer{};
+    PacketHeader header{};
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(NetAudioServer)
 };

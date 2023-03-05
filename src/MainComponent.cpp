@@ -30,7 +30,7 @@ MainComponent::~MainComponent() {
 
 void MainComponent::prepareToPlay(int samplesPerBlockExpected, double sampleRate) {
     multiChannelSource->prepareToPlay(samplesPerBlockExpected, sampleRate);
-    netServer->prepareToSend(samplesPerBlockExpected);
+    netServer->prepareToSend(samplesPerBlockExpected, sampleRate);
 }
 
 void MainComponent::releaseResources() {

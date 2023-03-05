@@ -42,7 +42,7 @@ target_link_libraries(NetJUCE
         juce::juce_recommended_config_flags
         juce::juce_recommended_warning_flags)
 
-if (CMAKE_BUILD_TYPE STREQUAL "Debug")
+if (CMAKE_BUILD_TYPE STREQUAL "Debug" AND CMAKE_SYSTEM_NAME STREQUAL "Darwin")
     # Sign targets to allow debugging without elevated privileges
     add_custom_command(TARGET NetJUCE
             POST_BUILD
