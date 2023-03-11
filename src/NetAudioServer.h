@@ -9,6 +9,8 @@
 #include <juce_audio_basics/juce_audio_basics.h>
 #include "Constants.h"
 #include "PacketHeader.h"
+#include "NetBuffer.h"
+#include "Utils.h"
 
 using ConverterF32I16 = juce::AudioData::ConverterInstance<
         juce::AudioData::Pointer<
@@ -42,7 +44,7 @@ using ConverterF32I16 = juce::AudioData::ConverterInstance<
                 //
                 // Up to 0039 is header data (ethernet + ip + udp + jacktrip)
                 //
-                // Sending eig endian here resulted in equivalent:
+                // Sending big endian here resulted in equivalent:
                 //
                 //0000   01 00 5e 06 26 e2 a0 36 bc d0 aa 18 08 00 45 00
                 //0010   00 9c 3e d7 40 00 01 11 66 df c0 a8 0a 0a e2 06
@@ -58,7 +60,7 @@ using ConverterF32I16 = juce::AudioData::ConverterInstance<
                 //
                 // Where up to 0029 is header (obviously no 16 byte jacktrip
                 // header here)
-                // As can be seen, each 16-bit (2-byte) WORD is reversed in the
+                // As can be seen, each 16-bit (2-byte) word is reversed in the
                 // Big endian version.
                 //
                 // Switching to little endian:
@@ -97,7 +99,7 @@ public:
 
     void prepareToSend(int samplesPerBlockExpected, double sampleRate);
 
-    bool send(const juce::AudioSourceChannelInfo &bufferToSend);
+    bool handleAudioBlock(const juce::AudioSourceChannelInfo &bufferToSend);
 
     void releaseResources();
 
@@ -111,40 +113,26 @@ private:
         ConnectorThread(std::unique_ptr<juce::DatagramSocket> &udpRef,
                         uint16_t &localPortToUse,
                         juce::String &localIPToUse,
-                        juce::String &multicastIPToUse) :
-                juce::Thread("Connector thread"),
-                udp(udpRef),
-                localPort(&localPortToUse),
-                localIP(&localIPToUse),
-                multicastIP(&multicastIPToUse) {}
+                        juce::String &multicastIPToUse,
+                        uint16_t &remotePortToUse,
+                        NetBuffer &nb);
 
-        void run() override {
-            while (!threadShouldExit()) {
-                if (udp->getBoundPort() < 0 || !connected.load()) {
-                    auto bound{udp->bindToPort(*localPort, *localIP)};
-                    auto joined{bound && udp->joinMulticast(*multicastIP)};
-                    if (!bound || !joined) {
-                        DBG(strerror(errno));
-                    }
-                    connected.store(joined && udp->waitUntilReady(false, kTimeout) == 1);
-                }
+        void run() override;
 
-                wait(1000);
-            }
-        }
-
-        std::atomic<bool> connected{false};
+        juce::Atomic<bool> connected{false};
     private:
-        std::unique_ptr<juce::DatagramSocket> &udp;
-        uint16_t *localPort;
-        juce::String *localIP, *multicastIP;
+        std::unique_ptr<juce::DatagramSocket> &socket;
+        uint16_t &localPort, &remotePort;
+        juce::String &localIP, &multicastIP;
         const int kTimeout{5000};
+        NetBuffer *netBuffer;
+        const int kBufferPeriod{static_cast<int>(1e6 * AUDIO_BLOCK_SAMPLES / 44100.f)};
     };
 
     ConnectorThread connectorThread;
 
     const uint kBytesPerSample{2};
-    std::unique_ptr<juce::DatagramSocket> udp;
+    std::unique_ptr<juce::DatagramSocket> socket;
     juce::String multicastIP, localIP;
     uint16_t localPort, remotePort;
     uint numChannels;
@@ -152,6 +140,12 @@ private:
     int bytesPerPacket{0};
     uint8_t *netBuffer{};
     PacketHeader header{};
+    bool sendHeader{false};
+    NetBuffer nb;
+    int seq{0};
+    double time{0};
+
+    void initHeader(int samplesPerBlockExpected, double sampleRate);
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(NetAudioServer)
 };

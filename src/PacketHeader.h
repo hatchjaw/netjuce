@@ -26,12 +26,12 @@ enum SamplingRateT {
 struct PacketHeader {
 public:
     uint16_t SeqNumber;
-    uint16_t BufferSize;
+    uint8_t BufferSize;
     uint8_t SamplingRate;
     uint8_t BitResolution;
     uint8_t NumChannels;
 };
 
-#define PACKET_HEADER_SIZE sizeof (PacketHeader)
+#define PACKET_HEADER_SIZE sizeof(PacketHeader)
 
 #endif //NETJUCE_PACKETHEADER_H

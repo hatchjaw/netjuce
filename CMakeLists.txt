@@ -11,6 +11,8 @@ juce_add_console_app(NetJUCE
 
 target_compile_definitions(NetJUCE
         PRIVATE
+        JUCE_JACK=1
+        JUCE_JACK_CLIENT_NAME="${PROJECT_NAME}"
         AUDIO_BLOCK_SAMPLES=32
         NUM_SOURCES=2
         DEFAULT_MULTICAST_IP="226.6.38.226"
@@ -24,7 +26,8 @@ target_sources(NetJUCE
         src/Main.cpp
         src/MainComponent.cpp
         lib/succulent/MultiChannelAudioSource/MultiChannelAudioSource.cpp
-        src/NetAudioServer.cpp)
+        src/NetAudioServer.cpp
+        src/NetBuffer.cpp)
 
 target_compile_definitions(NetJUCE
         PRIVATE
