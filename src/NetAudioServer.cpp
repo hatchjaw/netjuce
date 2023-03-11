@@ -9,7 +9,7 @@ NetAudioServer::NetAudioServer(const juce::String &multicastIPAddress,
                                const juce::String &localIPAddress,
                                uint16_t remotePortNumber,
                                uint numChannelsToSend) :
-        connectorThread(socket, localPort, localIP, multicastIP, remotePort, nb),
+        senderThread(socket, localPort, localIP, multicastIP, remotePort, nb),
         socket(std::make_unique<juce::DatagramSocket>()),
         multicastIP(multicastIPAddress),
         localIP(localIPAddress),
@@ -29,60 +29,27 @@ void NetAudioServer::disconnect() {
     // When first disconnecting, destroy the UDP object and recreate it.
     // A DatagramSocket instance that has been shut down cannot be reused
     // (see DatagramSocket::shutdown()).
-    if (connectorThread.connected.get()) {
+    if (senderThread.connected.get()) {
         socket = std::make_unique<juce::DatagramSocket>();
     }
-    connectorThread.connected.set(false);
+    senderThread.connected.set(false);
 }
 
 void NetAudioServer::prepareToSend(int samplesPerBlockExpected, double sampleRate) {
-    initHeader(samplesPerBlockExpected, sampleRate);
-    bytesPerPacket = sendHeader ?
+    senderThread.initHeader(samplesPerBlockExpected, sampleRate);
+    bytesPerPacket = false ?
                      static_cast<int>(PACKET_HEADER_SIZE) +
                      samplesPerBlockExpected * static_cast<int>(numChannels) * static_cast<int>(kBytesPerSample) :
                      samplesPerBlockExpected * static_cast<int>(numChannels) * static_cast<int>(kBytesPerSample);
     DBG("Header size: " << PACKET_HEADER_SIZE << " Packet size: " << bytesPerPacket);
-    netBuffer = new uint8_t[static_cast<uint>(bytesPerPacket)];
-    connectorThread.startThread();
+    sixteenBitBuffer = new uint8_t[static_cast<uint>(bytesPerPacket)];
+    senderThread.startThread();
 //    auto options{juce::Thread::RealtimeOptions{6}};
 //    connectorThread.startRealtimeThread(options);
 }
 
-void NetAudioServer::initHeader(int samplesPerBlockExpected, double sampleRate) {
-    header.BitResolution = BIT16;
-    header.BufferSize = samplesPerBlockExpected;
-    header.NumChannels = NUM_SOURCES;
-    header.SeqNumber = 0;
-    switch (static_cast<int>(sampleRate)) {
-        case 22050:
-            header.SamplingRate = SR22;
-            break;
-        case 32000:
-            header.SamplingRate = SR32;
-            break;
-        case 44100:
-            header.SamplingRate = SR44;
-            break;
-        case 48000:
-            header.SamplingRate = SR48;
-            break;
-        case 88200:
-            header.SamplingRate = SR88;
-            break;
-        case 96000:
-            header.SamplingRate = SR96;
-            break;
-        case 19200:
-            header.SamplingRate = SR192;
-            break;
-        default:
-            header.SamplingRate = UNDEF;
-            break;
-    }
-}
-
 bool NetAudioServer::handleAudioBlock(const juce::AudioSourceChannelInfo &bufferToSend) {
-    if (connectorThread.connected.get()) {
+    if (senderThread.connected.get()) {
         // Stop the connector thread if already connected.
         // Don't use this if using connector thread to send data too.
 //        if (connectorThread.isThreadRunning()) {
@@ -92,12 +59,13 @@ bool NetAudioServer::handleAudioBlock(const juce::AudioSourceChannelInfo &buffer
         // Convert from float to int16...
         auto bytesPerSample{static_cast<int>(kBytesPerSample)};
         for (int ch{0}; ch < bufferToSend.buffer->getNumChannels(); ++ch) {
-            if (sendHeader) {
-                converter->convertSamples(netBuffer + PACKET_HEADER_SIZE + ch * AUDIO_BLOCK_SAMPLES * bytesPerSample,
-                                          bufferToSend.buffer->getReadPointer(ch),
-                                          bufferToSend.buffer->getNumSamples());
+            if (false) {
+                converter->convertSamples(
+                        sixteenBitBuffer + PACKET_HEADER_SIZE + ch * AUDIO_BLOCK_SAMPLES * bytesPerSample,
+                        bufferToSend.buffer->getReadPointer(ch),
+                        bufferToSend.buffer->getNumSamples());
             } else {
-                converter->convertSamples(netBuffer + ch * AUDIO_BLOCK_SAMPLES * bytesPerSample,
+                converter->convertSamples(sixteenBitBuffer + ch * AUDIO_BLOCK_SAMPLES * bytesPerSample,
                                           bufferToSend.buffer->getReadPointer(ch),
                                           bufferToSend.buffer->getNumSamples());
             }
@@ -108,10 +76,10 @@ bool NetAudioServer::handleAudioBlock(const juce::AudioSourceChannelInfo &buffer
 //            std::cout << "after conversion" << std::endl;
 //            Utils::hexDump(netBuffer, bytesPerPacket);
 //        }
-        nb.write(netBuffer, bytesPerPacket);
+        nb.write(sixteenBitBuffer, bytesPerPacket);
 
         // Let the sender thread know there's a packet ready to send.
-        connectorThread.notify();
+        senderThread.notify();
 
 //        auto now{juce::Time::getMillisecondCounterHiRes()};
 //        DBG(now - time);
@@ -142,16 +110,16 @@ bool NetAudioServer::handleAudioBlock(const juce::AudioSourceChannelInfo &buffer
 }
 
 void NetAudioServer::releaseResources() {
-    delete[] netBuffer;
-    if (connectorThread.isThreadRunning()) {
-        connectorThread.stopThread(1000);
+    delete[] sixteenBitBuffer;
+    if (senderThread.isThreadRunning()) {
+        senderThread.stopThread(1000);
     }
 }
 
 ////////////////////////////////////////////////////////////////////////////////
 // CONNECTOR THREAD
 
-NetAudioServer::ConnectorThread::ConnectorThread(
+NetAudioServer::Sender::Sender(
         std::unique_ptr<juce::DatagramSocket> &udpRef,
         uint16_t &localPortToUse,
         juce::String &localIPToUse,
@@ -166,7 +134,7 @@ NetAudioServer::ConnectorThread::ConnectorThread(
         multicastIP{multicastIPToUse},
         netBuffer{&nb} {}
 
-void NetAudioServer::ConnectorThread::run() {
+void NetAudioServer::Sender::run() {
     auto seq{0};
     while (!threadShouldExit()) {
         // Attempt to bind a port and join the multicast group.
@@ -209,14 +177,50 @@ void NetAudioServer::ConnectorThread::run() {
 
             wait(-1);
             uint8_t *buf;
-            auto bytes{AUDIO_BLOCK_SAMPLES * NUM_SOURCES * 2};
-            netBuffer->read(buf, bytes);
+            int audioBytes{AUDIO_BLOCK_SAMPLES * NUM_SOURCES * 2};
+            int packetBytes{audioBytes + static_cast<int>(PACKET_HEADER_SIZE)};
+            netBuffer->read(buf + PACKET_HEADER_SIZE, audioBytes);
+            memcpy(buf, &header, PACKET_HEADER_SIZE);
             if (seq % 10000 <= 1) {
                 std::cout << "before send " << seq << std::endl;
-                Utils::hexDump(buf, bytes);
+                Utils::hexDump(buf, packetBytes);
             }
-            socket->write(multicastIP, remotePort, buf, bytes);
+            socket->write(multicastIP, remotePort, buf, packetBytes);
+            ++header.SeqNumber;
             ++seq;
         }
+    }
+}
+
+void NetAudioServer::Sender::initHeader(int samplesPerBlock, double sampleRate) {
+    header.BitResolution = BIT16;
+    header.BufferSize = samplesPerBlock;
+    header.NumChannels = NUM_SOURCES;
+    header.SeqNumber = 0;
+    switch (static_cast<int>(sampleRate)) {
+        case 22050:
+            header.SamplingRate = SR22;
+            break;
+        case 32000:
+            header.SamplingRate = SR32;
+            break;
+        case 44100:
+            header.SamplingRate = SR44;
+            break;
+        case 48000:
+            header.SamplingRate = SR48;
+            break;
+        case 88200:
+            header.SamplingRate = SR88;
+            break;
+        case 96000:
+            header.SamplingRate = SR96;
+            break;
+        case 19200:
+            header.SamplingRate = SR192;
+            break;
+        default:
+            header.SamplingRate = UNDEF;
+            break;
     }
 }

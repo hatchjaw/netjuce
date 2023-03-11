@@ -105,31 +105,33 @@ public:
 
 private:
     /**
-     * A thread to check periodically whether UDP is connected, and, if not,
-     * attempt to set up a connection.
+     * A thread for multicasting UDP packets. Attempts to set up a connection if
+     * one hasn't been established.
      */
-    class ConnectorThread : public juce::Thread {
+    class Sender : public juce::Thread {
     public:
-        ConnectorThread(std::unique_ptr<juce::DatagramSocket> &udpRef,
-                        uint16_t &localPortToUse,
-                        juce::String &localIPToUse,
-                        juce::String &multicastIPToUse,
-                        uint16_t &remotePortToUse,
-                        NetBuffer &nb);
+        Sender(std::unique_ptr<juce::DatagramSocket> &udpRef,
+               uint16_t &localPortToUse,
+               juce::String &localIPToUse,
+               juce::String &multicastIPToUse,
+               uint16_t &remotePortToUse,
+               NetBuffer &nb);
 
         void run() override;
 
         juce::Atomic<bool> connected{false};
+
+        void initHeader(int samplesPerBlock, double sampleRate);
     private:
         std::unique_ptr<juce::DatagramSocket> &socket;
         uint16_t &localPort, &remotePort;
         juce::String &localIP, &multicastIP;
         const int kTimeout{5000};
         NetBuffer *netBuffer;
-        const int kBufferPeriod{static_cast<int>(1e6 * AUDIO_BLOCK_SAMPLES / 44100.f)};
+        PacketHeader header{};
     };
 
-    ConnectorThread connectorThread;
+    Sender senderThread;
 
     const uint kBytesPerSample{2};
     std::unique_ptr<juce::DatagramSocket> socket;
@@ -138,14 +140,10 @@ private:
     uint numChannels;
     std::unique_ptr<ConverterF32I16> converter;
     int bytesPerPacket{0};
-    uint8_t *netBuffer{};
-    PacketHeader header{};
-    bool sendHeader{false};
+    uint8_t *sixteenBitBuffer{};
     NetBuffer nb;
     int seq{0};
     double time{0};
-
-    void initHeader(int samplesPerBlockExpected, double sampleRate);
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(NetAudioServer)
 };
