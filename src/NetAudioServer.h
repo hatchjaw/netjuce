@@ -10,14 +10,15 @@
 #include "Utils.h"
 #include "AudioToNetFifo.h"
 #include "DatagramPacket.h"
+#include "MulticastSocket.h"
 
 class NetAudioServer {
 public:
-    NetAudioServer(const juce::String &multicastIPAddress = DEFAULT_MULTICAST_IP,
-                   uint16_t localPortNumber = DEFAULT_LOCAL_PORT,
-                   const juce::String &localIPAddress = DEFAULT_LOCAL_ADDRESS,
-                   uint16_t remotePortNumber = DEFAULT_REMOTE_PORT,
-                   int numChannelsToSend = NUM_SOURCES);
+    explicit NetAudioServer(const juce::String &multicastIP = DEFAULT_MULTICAST_IP,
+                            uint16_t localPortNumber = DEFAULT_LOCAL_PORT,
+                            const juce::String &localIP = DEFAULT_LOCAL_ADDRESS,
+                            uint16_t remotePortNumber = DEFAULT_REMOTE_PORT,
+                            int numChannelsToSend = NUM_SOURCES);
 
     ~NetAudioServer();
 
@@ -36,12 +37,7 @@ private:
      */
     class Sender : public juce::Thread {
     public:
-        Sender(std::unique_ptr<juce::DatagramSocket> &socketRef,
-               uint16_t &localPortToUse,
-               juce::String &localIPToUse,
-               juce::String &multicastIPToUse,
-               uint16_t &remotePortToUse,
-               AudioToNetFifo &fifoRef);
+        Sender(std::unique_ptr<MulticastSocket> &socketRef, AudioToNetFifo &fifoRef);
 
         void run() override;
 
@@ -51,9 +47,7 @@ private:
 
     private:
         const int kTimeout{5000};
-        std::unique_ptr<juce::DatagramSocket> &socket;
-        uint16_t &localPort, &remotePort;
-        juce::String &localIP, &multicastIP;
+        std::unique_ptr<MulticastSocket> &socket;
         AudioToNetFifo &fifo;
         DatagramPacket packet;
         int audioBlockSamples{0};
@@ -61,9 +55,7 @@ private:
 
     Sender senderThread;
 
-    std::unique_ptr<juce::DatagramSocket> socket;
-    juce::String multicastIP, localIP;
-    uint16_t localPort, remotePort;
+    std::unique_ptr<MulticastSocket> socket;
     int numChannels;
     AudioToNetFifo fifo;
 

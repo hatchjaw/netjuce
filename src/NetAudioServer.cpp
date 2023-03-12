@@ -4,23 +4,22 @@
 
 #include "NetAudioServer.h"
 
-NetAudioServer::NetAudioServer(const juce::String &multicastIPAddress,
+NetAudioServer::NetAudioServer(const juce::String &multicastIP,
                                uint16_t localPortNumber,
-                               const juce::String &localIPAddress,
+                               const juce::String &localIP,
                                uint16_t remotePortNumber,
                                int numChannelsToSend) :
-        senderThread(socket, localPort, localIP, multicastIP, remotePort, fifo),
-        socket(std::make_unique<juce::DatagramSocket>()),
-        multicastIP(multicastIPAddress),
-        localIP(localIPAddress),
-        localPort(localPortNumber),
-        remotePort(remotePortNumber),
+        senderThread(socket, fifo),
+        socket(std::make_unique<MulticastSocket>(juce::IPAddress{localIP},
+                                                 juce::IPAddress{multicastIP},
+                                                 localPortNumber,
+                                                 remotePortNumber)),
         numChannels(numChannelsToSend),
         fifo(numChannelsToSend) {}
 
 NetAudioServer::~NetAudioServer() {
     releaseResources();
-    socket->shutdown();
+//    socket->shutdown(); // TODO: shutdown in multicast socket class
 }
 
 void NetAudioServer::disconnect() {
@@ -28,7 +27,8 @@ void NetAudioServer::disconnect() {
     // A DatagramSocket instance that has been shut down cannot be reused
     // (see DatagramSocket::shutdown()).
     if (senderThread.connected.get()) {
-        socket = std::make_unique<juce::DatagramSocket>();
+        // TODO: move into multicast socket class
+//        socket = std::make_unique<juce::DatagramSocket>();
     }
     senderThread.connected.set(false);
 }
@@ -64,45 +64,35 @@ void NetAudioServer::releaseResources() {
 ////////////////////////////////////////////////////////////////////////////////
 // SENDER THREAD
 
-NetAudioServer::Sender::Sender(std::unique_ptr<juce::DatagramSocket> &socketRef,
-                               uint16_t &localPortToUse,
-                               juce::String &localIPToUse,
-                               juce::String &multicastIPToUse,
-                               uint16_t &remotePortToUse,
+NetAudioServer::Sender::Sender(std::unique_ptr<MulticastSocket> &socketRef,
                                AudioToNetFifo &fifoRef) :
         juce::Thread{"Connector thread"},
         socket{socketRef},
-        localPort{localPortToUse},
-        remotePort{remotePortToUse},
-        localIP{localIPToUse},
-        multicastIP{multicastIPToUse},
         fifo{fifoRef} {}
 
 void NetAudioServer::Sender::run() {
     while (!threadShouldExit()) {
         // Attempt to bind a port and join the multicast group.
-        if (!connected.get() || socket->getBoundPort() < 0) {
-            auto bound{socket->bindToPort(localPort, localIP)};
-            auto joined{bound && socket->joinMulticast(multicastIP)};
-            if (!bound || !joined) {
-                DBG(strerror(errno));
-            }
-            auto ready{joined && socket->waitUntilReady(false, kTimeout) == 1};
-
+        if (!connected.get()) {
+            auto ready{socket->connect()};
             connected.set(ready);
             if (!ready) {
                 wait(1000);
             }
         } else { // Send stuff.
+            // Wait for notification from the audio callback.
             wait(-1);
 
+            // Read from the fifo into the packet.
             fifo.read(packet.getAudioData(), audioBlockSamples);
+            // Write the header to the packet.
             packet.writeHeader();
             if (packet.getSeqNumber() % 10000 <= 1) {
                 std::cout << "Send, seq no. " << packet.getSeqNumber() << std::endl;
                 Utils::hexDump(reinterpret_cast<uint8_t *>(packet.getData()), static_cast<int>(packet.getSize()), true);
             }
-            socket->write(multicastIP, remotePort, packet.getData(), static_cast<int>(packet.getSize()));
+            // Write the packet to the socket.
+            socket->write(packet);
             packet.incrementSeqNumber();
         }
     }

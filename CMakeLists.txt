@@ -28,7 +28,8 @@ target_sources(NetJUCE
         lib/succulent/MultiChannelAudioSource/MultiChannelAudioSource.cpp
         src/NetAudioServer.cpp
         src/AudioToNetFifo.cpp
-        src/DatagramPacket.cpp)
+        src/DatagramPacket.cpp
+        src/MulticastSocket.cpp)
 
 target_compile_definitions(NetJUCE
         PRIVATE
