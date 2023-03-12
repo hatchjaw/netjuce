@@ -9,10 +9,10 @@
 
 class Utils {
 public:
-    static void hexDump(const uint8_t *buf, int nBytes) {
-        int word{10}, row{0};
-        printf("HEAD");
-        for (const uint8_t *p = buf; word < nBytes + 10; ++p, ++word) {
+    static void hexDump(const uint8_t *buf, int nBytes, bool includeHeader=false) {
+        int word{includeHeader ? 10 : 0}, row{0};
+        if (includeHeader) printf("HEAD");
+        for (const uint8_t *p = buf; word < nBytes + (includeHeader ? 10 : 0); ++p, ++word) {
             if (word % 16 == 0) {
                 if (word != 0) std::cout << std::endl;
                 printf("%04x ", row);

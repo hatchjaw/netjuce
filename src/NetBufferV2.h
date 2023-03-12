@@ -1,17 +1,12 @@
 //
-// Created by Tommy Rushton on 16/02/2023.
+// Created by tar on 3/12/23.
 //
 
-#ifndef NETJUCE_NETAUDIOSERVER_H
-#define NETJUCE_NETAUDIOSERVER_H
+#ifndef NETJUCE_NETBUFFERV2_H
+#define NETJUCE_NETBUFFERV2_H
 
 #include <juce_core/juce_core.h>
 #include <juce_audio_basics/juce_audio_basics.h>
-#include "Constants.h"
-#include "PacketHeader.h"
-#include "NetBuffer.h"
-#include "Utils.h"
-#include "NetBufferV2.h"
 
 using ConverterF32I16 = juce::AudioData::ConverterInstance<
         juce::AudioData::Pointer<
@@ -86,71 +81,24 @@ using ConverterF32I16 = juce::AudioData::ConverterInstance<
         >
 >;
 
-class NetAudioServer {
+class NetBufferV2 {
 public:
-    explicit NetAudioServer(const juce::String &multicastIP = DEFAULT_MULTICAST_IP,
-                            uint16_t localPort = DEFAULT_LOCAL_PORT,
-                            const juce::String &localIP = DEFAULT_LOCAL_ADDRESS,
-                            uint16_t remotePort = DEFAULT_REMOTE_PORT,
-                            uint numChannelsToSend = NUM_SOURCES);
+    explicit NetBufferV2(uint8_t numChannels);
 
-    ~NetAudioServer();
+    ~NetBufferV2();
 
-    void disconnect();
+    void read(uint8_t *dest, int len);
 
-    void prepareToSend(int samplesPerBlockExpected, double sampleRate);
+    void setSize(int numSamples, int redundancy = 1);
 
-    bool handleAudioBlock(const juce::AudioSourceChannelInfo &bufferToSend);
-
-    void releaseResources();
+    void write(juce::AudioBuffer<float> *buffer);
 
 private:
-    /**
-     * A thread for multicasting UDP packets. Attempts to set up a connection if
-     * one hasn't been established.
-     */
-    class Sender : public juce::Thread {
-    public:
-        Sender(std::unique_ptr<juce::DatagramSocket> &udpRef,
-               uint16_t &localPortToUse,
-               juce::String &localIPToUse,
-               juce::String &multicastIPToUse,
-               uint16_t &remotePortToUse,
-               NetBuffer &nb,
-               NetBufferV2 &nb2);
-
-        void run() override;
-
-        juce::Atomic<bool> connected{false};
-
-        void initHeader(int samplesPerBlock, double sampleRate);
-    private:
-        std::unique_ptr<juce::DatagramSocket> &socket;
-        uint16_t &localPort, &remotePort;
-        juce::String &localIP, &multicastIP;
-        const int kTimeout{5000};
-        NetBuffer *netBuffer;
-        NetBufferV2 *netBuffer2;
-        PacketHeader header{};
-    };
-
-    Sender senderThread;
-
-    const uint kBytesPerSample{2};
-    std::unique_ptr<juce::DatagramSocket> socket;
-    juce::String multicastIP, localIP;
-    uint16_t localPort, remotePort;
-    uint numChannels;
+    const int kBytesPerSample{sizeof(int16_t)};
+    juce::AbstractFifo fifo;
+    std::unique_ptr<juce::AudioBuffer<float>> buffer;
     std::unique_ptr<ConverterF32I16> converter;
-    int bytesPerPacket{0};
-    uint8_t *sixteenBitBuffer{};
-    NetBuffer nb;
-    NetBufferV2 nb2;
-    int seq{0};
-    double time{0};
-
-    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(NetAudioServer)
 };
 
 
-#endif //NETJUCE_NETAUDIOSERVER_H
+#endif //NETJUCE_NETBUFFERV2_H

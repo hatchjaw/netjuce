@@ -9,7 +9,7 @@ NetAudioServer::NetAudioServer(const juce::String &multicastIPAddress,
                                const juce::String &localIPAddress,
                                uint16_t remotePortNumber,
                                uint numChannelsToSend) :
-        senderThread(socket, localPort, localIP, multicastIP, remotePort, nb),
+        senderThread(socket, localPort, localIP, multicastIP, remotePort, nb, nb2),
         socket(std::make_unique<juce::DatagramSocket>()),
         multicastIP(multicastIPAddress),
         localIP(localIPAddress),
@@ -18,7 +18,9 @@ NetAudioServer::NetAudioServer(const juce::String &multicastIPAddress,
         numChannels(numChannelsToSend),
         converter{std::make_unique<ConverterF32I16>(numChannelsToSend, numChannelsToSend)},
         // Size of netbuffer: big enough to hold 2 x ($m$ channels of $n$ 16-bit samples).
-        nb{AUDIO_BLOCK_SAMPLES * sizeof(int16_t) * NUM_SOURCES * 2} {}
+        nb{AUDIO_BLOCK_SAMPLES * sizeof(int16_t) * NUM_SOURCES * 2},
+        // Setting numSamples like this is not nice. TODO: set in prepareToSend()
+        nb2(numChannelsToSend) {}
 
 NetAudioServer::~NetAudioServer() {
     releaseResources();
@@ -43,6 +45,7 @@ void NetAudioServer::prepareToSend(int samplesPerBlockExpected, double sampleRat
                      samplesPerBlockExpected * static_cast<int>(numChannels) * static_cast<int>(kBytesPerSample);
     DBG("Header size: " << PACKET_HEADER_SIZE << " Packet size: " << bytesPerPacket);
     sixteenBitBuffer = new uint8_t[static_cast<uint>(bytesPerPacket)];
+    nb2.setSize(samplesPerBlockExpected, 4);
     senderThread.startThread();
 //    auto options{juce::Thread::RealtimeOptions{6}};
 //    connectorThread.startRealtimeThread(options);
@@ -50,6 +53,8 @@ void NetAudioServer::prepareToSend(int samplesPerBlockExpected, double sampleRat
 
 bool NetAudioServer::handleAudioBlock(const juce::AudioSourceChannelInfo &bufferToSend) {
     if (senderThread.connected.get()) {
+        nb2.write(bufferToSend.buffer);
+
         // Stop the connector thread if already connected.
         // Don't use this if using connector thread to send data too.
 //        if (connectorThread.isThreadRunning()) {
@@ -72,10 +77,10 @@ bool NetAudioServer::handleAudioBlock(const juce::AudioSourceChannelInfo &buffer
         }
 
         // Write to the netbuffer.
-//        if (seq % 10000 == 0) {
-//            std::cout << "after conversion" << std::endl;
-//            Utils::hexDump(netBuffer, bytesPerPacket);
-//        }
+        if (seq++ % 10000 <= 1) {
+            std::cout << "after conversion" << std::endl;
+            Utils::hexDump(sixteenBitBuffer, bytesPerPacket);
+        }
         nb.write(sixteenBitBuffer, bytesPerPacket);
 
         // Let the sender thread know there's a packet ready to send.
@@ -125,14 +130,16 @@ NetAudioServer::Sender::Sender(
         juce::String &localIPToUse,
         juce::String &multicastIPToUse,
         uint16_t &remotePortToUse,
-        NetBuffer &nb) :
+        NetBuffer &nb,
+        NetBufferV2 &nb2) :
         juce::Thread{"Connector thread"},
         socket{udpRef},
         localPort{localPortToUse},
         remotePort{remotePortToUse},
         localIP{localIPToUse},
         multicastIP{multicastIPToUse},
-        netBuffer{&nb} {}
+        netBuffer{&nb},
+        netBuffer2{&nb2} {}
 
 void NetAudioServer::Sender::run() {
     auto seq{0};
@@ -176,16 +183,27 @@ void NetAudioServer::Sender::run() {
 //            }
 
             wait(-1);
-            uint8_t *buf;
+
             int audioBytes{AUDIO_BLOCK_SAMPLES * NUM_SOURCES * 2};
             int packetBytes{audioBytes + static_cast<int>(PACKET_HEADER_SIZE)};
+
+            uint8_t *buf;
             netBuffer->read(buf + PACKET_HEADER_SIZE, audioBytes);
             memcpy(buf, &header, PACKET_HEADER_SIZE);
+
+            uint8_t *b;
+            netBuffer2->read(b + PACKET_HEADER_SIZE, AUDIO_BLOCK_SAMPLES);
+            memcpy(b, &header, PACKET_HEADER_SIZE);
+
             if (seq % 10000 <= 1) {
                 std::cout << "before send " << seq << std::endl;
-                Utils::hexDump(buf, packetBytes);
+                std::cout << "buf " << std::endl;
+                Utils::hexDump(buf, packetBytes, true);
+                std::cout << "b" << std::endl;
+                Utils::hexDump(b, packetBytes, true);
             }
-            socket->write(multicastIP, remotePort, buf, packetBytes);
+
+            socket->write(multicastIP, remotePort, b, packetBytes);
             ++header.SeqNumber;
             ++seq;
         }
