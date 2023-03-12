@@ -27,8 +27,8 @@ target_sources(NetJUCE
         src/MainComponent.cpp
         lib/succulent/MultiChannelAudioSource/MultiChannelAudioSource.cpp
         src/NetAudioServer.cpp
-        src/NetBuffer.cpp
-        src/NetBufferV2.cpp)
+        src/AudioToNetFifo.cpp
+        src/DatagramPacket.cpp)
 
 target_compile_definitions(NetJUCE
         PRIVATE

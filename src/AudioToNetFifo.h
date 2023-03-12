@@ -2,8 +2,8 @@
 // Created by tar on 3/12/23.
 //
 
-#ifndef NETJUCE_NETBUFFERV2_H
-#define NETJUCE_NETBUFFERV2_H
+#ifndef NETJUCE_AUDIOTONETFIFO_H
+#define NETJUCE_AUDIOTONETFIFO_H
 
 #include <juce_core/juce_core.h>
 #include <juce_audio_basics/juce_audio_basics.h>
@@ -81,17 +81,31 @@ using ConverterF32I16 = juce::AudioData::ConverterInstance<
         >
 >;
 
-class NetBufferV2 {
+class AudioToNetFifo {
 public:
-    explicit NetBufferV2(uint8_t numChannels);
+    explicit AudioToNetFifo(uint8_t numChannels);
 
-    ~NetBufferV2();
+    ~AudioToNetFifo();
 
-    void read(uint8_t *dest, int len);
-
+    /**
+     * Set the size of the buffer.
+     * @param numSamples
+     * @param redundancy The number of multiples of numSamples to use.
+     */
     void setSize(int numSamples, int redundancy = 1);
 
+    /**
+     * Write samples into the fifo.
+     * @param buffer
+     */
     void write(juce::AudioBuffer<float> *buffer);
+
+    /**
+     * Read samples from the fifo into dest.
+     * @param dest The destination buffer to read into.
+     * @param numSamples The number of samples to read for each channel in the fifo.
+     */
+    void read(uint8_t *dest, int numSamples);
 
 private:
     const int kBytesPerSample{sizeof(int16_t)};
@@ -101,4 +115,4 @@ private:
 };
 
 
-#endif //NETJUCE_NETBUFFERV2_H
+#endif //NETJUCE_AUDIOTONETFIFO_H
