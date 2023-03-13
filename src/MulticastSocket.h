@@ -21,6 +21,8 @@ public:
 
     void write(DatagramPacket &packet);
 
+    void read(DatagramPacket &packet);
+
 private:
     const uint kTimeoutMs;
 

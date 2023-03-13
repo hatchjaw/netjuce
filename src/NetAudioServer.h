@@ -53,7 +53,21 @@ private:
         int audioBlockSamples{0};
     };
 
+    class Receiver : public juce::Thread {
+    public:
+        explicit Receiver(std::unique_ptr<MulticastSocket> &socketRef);
+
+        void run() override;
+
+        void prepareToReceive(int numChannelsToSend, int samplesPerBlock, double sampleRate);
+
+    private:
+        std::unique_ptr<MulticastSocket> &socket;
+        DatagramPacket packet;
+    };
+
     Sender senderThread;
+    Receiver receiverThread;
 
     std::unique_ptr<MulticastSocket> socket;
     int numChannels;

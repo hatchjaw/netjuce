@@ -10,6 +10,7 @@ NetAudioServer::NetAudioServer(const juce::String &multicastIP,
                                uint16_t remotePortNumber,
                                int numChannelsToSend) :
         senderThread(socket, fifo),
+        receiverThread(socket),
         socket(std::make_unique<MulticastSocket>(juce::IPAddress{localIP},
                                                  juce::IPAddress{multicastIP},
                                                  localPortNumber,
@@ -37,6 +38,8 @@ void NetAudioServer::prepareToSend(int samplesPerBlockExpected, double sampleRat
     fifo.setSize(samplesPerBlockExpected, 4);
     senderThread.prepareToSend(numChannels, samplesPerBlockExpected, sampleRate);
     senderThread.startThread();
+    receiverThread.prepareToReceive(numChannels, samplesPerBlockExpected, sampleRate);
+    receiverThread.startThread();
 }
 
 bool NetAudioServer::handleAudioBlock(const juce::AudioSourceChannelInfo &bufferToSend) {
@@ -66,7 +69,7 @@ void NetAudioServer::releaseResources() {
 
 NetAudioServer::Sender::Sender(std::unique_ptr<MulticastSocket> &socketRef,
                                AudioToNetFifo &fifoRef) :
-        juce::Thread{"Connector thread"},
+        juce::Thread{"Sender thread"},
         socket{socketRef},
         fifo{fifoRef} {}
 
@@ -101,4 +104,21 @@ void NetAudioServer::Sender::run() {
 void NetAudioServer::Sender::prepareToSend(int numChannelsToSend, int samplesPerBlockExpected, double sampleRate) {
     packet.prepare(numChannelsToSend, samplesPerBlockExpected, sampleRate);
     audioBlockSamples = samplesPerBlockExpected;
+}
+
+////////////////////////////////////////////////////////////////////////////////
+// RECEIVER THREAD
+NetAudioServer::Receiver::Receiver(std::unique_ptr<MulticastSocket> &socketRef) :
+        juce::Thread("Receiver Thread"),
+        socket{socketRef} {}
+
+void NetAudioServer::Receiver::prepareToReceive(int numChannelsToSend, int samplesPerBlock, double sampleRate) {
+    packet.prepare(numChannelsToSend, samplesPerBlock, sampleRate);
+}
+
+void NetAudioServer::Receiver::run() {
+    while (!threadShouldExit()) {
+        socket->read(packet);
+        wait(1);
+    }
 }

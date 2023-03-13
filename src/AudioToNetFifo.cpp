@@ -18,6 +18,8 @@ void AudioToNetFifo::setSize(int numSamples, int redundancy) {
 }
 
 void AudioToNetFifo::write(juce::AudioBuffer<float> *const src) {
+    const juce::ScopedLock lock{mutex};
+
     auto writeHandle{fifo.write(src->getNumSamples())};
 
     for (int ch = 0; ch < buffer->getNumChannels(); ++ch) {
@@ -28,6 +30,8 @@ void AudioToNetFifo::write(juce::AudioBuffer<float> *const src) {
 }
 
 void AudioToNetFifo::read(uint8_t *dest, int numSamples) {
+    const juce::ScopedLock lock{mutex};
+
     auto readHandle{fifo.read(numSamples)};
 
     auto bytesPerChannel{numSamples * kBytesPerSample};

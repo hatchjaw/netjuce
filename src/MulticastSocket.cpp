@@ -26,3 +26,10 @@ void MulticastSocket::write(DatagramPacket &packet) {
     // TODO: check for failure, etc.
     socket->write(ipToSend.toString(), portToSend, packet.getData(), static_cast<int>(packet.getSize()));
 }
+
+void MulticastSocket::read(DatagramPacket &packet) {
+    auto bytesRead{socket->read(packet.getData(), 1024, false)};
+    if (bytesRead != 0) {
+        DBG("Bytes read " << bytesRead);
+    }
+}

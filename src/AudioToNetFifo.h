@@ -113,6 +113,7 @@ private:
     juce::AbstractFifo fifo;
     std::unique_ptr<juce::AudioBuffer<float>> buffer;
     std::unique_ptr<ConverterF32I16> converter;
+    juce::CriticalSection mutex;
 };
 
 
