@@ -95,15 +95,16 @@ public:
     void setSize(int numSamples, int redundancy = 1);
 
     /**
-     * Write samples into the fifo.
+     * Write 32-bit float samples into the fifo.
      * @param buffer
      */
     void write(juce::AudioBuffer<float> *buffer);
 
     /**
-     * Read samples from the fifo into dest.
+     * Read 32-bit float samples from the fifo, convert them to 16-bit int and
+     * write them into dest.
      * @param dest The destination buffer to read into.
-     * @param numSamples The number of samples to read for each channel in the fifo.
+     * @param numSamples The number of samples to read for each channel of the fifo.
      */
     void read(uint8_t *dest, int numSamples);
 
