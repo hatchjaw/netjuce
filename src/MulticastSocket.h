@@ -9,13 +9,14 @@
 #include "DatagramPacket.h"
 
 class MulticastSocket {
-
-private:
 public:
-    MulticastSocket(const juce::IPAddress &localIP,
-                    const juce::IPAddress &multicastIP,
-                    uint16_t localPort, uint16_t remotePort,
-                    uint connectionTimeoutMs = 1000);
+    enum Mode {
+        READ,
+        WRITE
+    };
+
+    MulticastSocket(Mode rwMode, const juce::IPAddress &localIP, const juce::IPAddress &multicastIP, uint16_t localPort,
+                    uint16_t remotePort, uint connectionTimeoutMs = 1000);
 
     bool connect();
 
@@ -26,8 +27,9 @@ public:
 private:
     const uint kTimeoutMs;
 
-    juce::IPAddress ipToSend, ipToBind;
-    uint16_t portToBind, portToSend;
+    Mode mode;
+    juce::IPAddress multicastIP, localIPToBind;
+    uint16_t localPortToBind, remotePort;
     std::unique_ptr<juce::DatagramSocket> socket;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (MulticastSocket)

@@ -10,8 +10,13 @@ NetAudioServer::NetAudioServer(const juce::String &multicastIP,
                                uint16_t remotePortNumber,
                                int numChannelsToSend) :
         senderThread(socket, fifo),
-        receiverThread(socket),
-        socket(std::make_unique<MulticastSocket>(juce::IPAddress{localIP},
+        receiverThread(socket,
+                       juce::IPAddress{localIP},
+                       juce::IPAddress{multicastIP},
+                       remotePortNumber,
+                       localPortNumber),
+        socket(std::make_unique<MulticastSocket>(MulticastSocket::Mode::WRITE,
+                                                 juce::IPAddress{localIP},
                                                  juce::IPAddress{multicastIP},
                                                  localPortNumber,
                                                  remotePortNumber)),
@@ -110,15 +115,25 @@ void NetAudioServer::Sender::prepareToSend(int numChannelsToSend, int samplesPer
 // RECEIVER THREAD
 NetAudioServer::Receiver::Receiver(std::unique_ptr<MulticastSocket> &socketRef) :
         juce::Thread("Receiver Thread"),
-        socket{socketRef} {}
+        socket{socketRef} {
+}
+
+NetAudioServer::Receiver::Receiver(std::unique_ptr<MulticastSocket> &socketRef, juce::IPAddress localIP,
+                                   juce::IPAddress remoteIP, uint16_t localPort, uint16_t remotePort) :
+        juce::Thread("Receiver Thread"),
+        socket(socketRef),
+        sock(std::make_unique<MulticastSocket>(MulticastSocket::Mode::READ, localIP, remoteIP, localPort, remotePort)) {
+}
 
 void NetAudioServer::Receiver::prepareToReceive(int numChannelsToSend, int samplesPerBlock, double sampleRate) {
     packet.prepare(numChannelsToSend, samplesPerBlock, sampleRate);
+    sock->connect();
 }
 
 void NetAudioServer::Receiver::run() {
     while (!threadShouldExit()) {
-        socket->read(packet);
+//        socket->read(packet);
+        sock->read(packet);
         wait(1);
     }
 }

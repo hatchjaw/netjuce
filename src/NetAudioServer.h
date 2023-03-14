@@ -57,12 +57,19 @@ private:
     public:
         explicit Receiver(std::unique_ptr<MulticastSocket> &socketRef);
 
+        Receiver(std::unique_ptr<MulticastSocket> &socketRef,
+                 juce::IPAddress localIP,
+                 juce::IPAddress remoteIP,
+                 uint16_t localPort,
+                 uint16_t remotePort);
+
         void run() override;
 
         void prepareToReceive(int numChannelsToSend, int samplesPerBlock, double sampleRate);
 
     private:
         std::unique_ptr<MulticastSocket> &socket;
+        std::unique_ptr<MulticastSocket> sock;
         DatagramPacket packet;
     };
 

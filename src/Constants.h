@@ -18,7 +18,7 @@
 #endif
 
 #ifndef DEFAULT_REMOTE_PORT
-#define DEFAULT_REMOTE_PORT 18999
+#define DEFAULT_REMOTE_PORT 41814
 #endif
 
 #ifndef DEFAULT_LOCAL_ADDRESS
@@ -26,7 +26,7 @@
 #endif
 
 #ifndef DEFAULT_LOCAL_PORT
-#define DEFAULT_LOCAL_PORT 18999
+#define DEFAULT_LOCAL_PORT 14841
 #endif
 
 
