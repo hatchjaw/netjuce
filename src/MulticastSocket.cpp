@@ -47,8 +47,7 @@ void MulticastSocket::read(DatagramPacket &packet) {
     juce::String senderIP{""};
     int senderPort{0};
     int bytesRead;
-    while ((bytesRead = socket->read(packet.getData(), 134, false, senderIP, senderPort)) > 0) {
-        DBG(bytesRead << " bytes read from " << senderIP << ":" << senderPort);
+    while ((bytesRead = socket->read(packet.getData(), 1024, false, senderIP, senderPort)) > 0) {
+//        DBG(bytesRead << " bytes read from " << senderIP << ":" << senderPort);
     }
-    DBG("");
 }

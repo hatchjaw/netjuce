@@ -46,7 +46,6 @@ private:
         void prepareToSend(int numChannelsToSend, int samplesPerBlockExpected, double sampleRate);
 
     private:
-        const int kTimeout{5000};
         std::unique_ptr<MulticastSocket> &socket;
         AudioToNetFifo &fifo;
         DatagramPacket packet;
@@ -55,10 +54,7 @@ private:
 
     class Receiver : public juce::Thread {
     public:
-        explicit Receiver(std::unique_ptr<MulticastSocket> &socketRef);
-
-        Receiver(std::unique_ptr<MulticastSocket> &socketRef,
-                 juce::IPAddress localIP,
+        Receiver(juce::IPAddress localIP,
                  juce::IPAddress remoteIP,
                  uint16_t localPort,
                  uint16_t remotePort);
@@ -68,8 +64,7 @@ private:
         void prepareToReceive(int numChannelsToSend, int samplesPerBlock, double sampleRate);
 
     private:
-        std::unique_ptr<MulticastSocket> &socket;
-        std::unique_ptr<MulticastSocket> sock;
+        std::unique_ptr<MulticastSocket> socket;
         DatagramPacket packet;
     };
 

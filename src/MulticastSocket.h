@@ -15,8 +15,12 @@ public:
         WRITE
     };
 
-    MulticastSocket(Mode rwMode, const juce::IPAddress &localIP, const juce::IPAddress &multicastIP, uint16_t localPort,
-                    uint16_t remotePort, uint connectionTimeoutMs = 1000);
+    MulticastSocket(Mode rwMode,
+                    const juce::IPAddress &localIP,
+                    const juce::IPAddress &multicastIP,
+                    uint16_t localPort,
+                    uint16_t remotePort,
+                    uint connectionTimeoutMs = 1000);
 
     bool connect();
 

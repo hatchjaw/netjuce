@@ -10,8 +10,7 @@ NetAudioServer::NetAudioServer(const juce::String &multicastIP,
                                uint16_t remotePortNumber,
                                int numChannelsToSend) :
         senderThread(socket, fifo),
-        receiverThread(socket,
-                       juce::IPAddress{localIP},
+        receiverThread(juce::IPAddress{localIP},
                        juce::IPAddress{multicastIP},
                        remotePortNumber,
                        localPortNumber),
@@ -53,6 +52,8 @@ bool NetAudioServer::handleAudioBlock(const juce::AudioSourceChannelInfo &buffer
 
         // Let the sender thread know there's a packet ready to send.
         senderThread.notify();
+        // Tell the receiver thread to check for new packets... this probably isn't a great idea.
+        receiverThread.notify();
 
         return true;
     } else {
@@ -113,27 +114,28 @@ void NetAudioServer::Sender::prepareToSend(int numChannelsToSend, int samplesPer
 
 ////////////////////////////////////////////////////////////////////////////////
 // RECEIVER THREAD
-NetAudioServer::Receiver::Receiver(std::unique_ptr<MulticastSocket> &socketRef) :
+NetAudioServer::Receiver::Receiver(juce::IPAddress localIP,
+                                   juce::IPAddress remoteIP,
+                                   uint16_t localPort,
+                                   uint16_t remotePort) :
         juce::Thread("Receiver Thread"),
-        socket{socketRef} {
-}
-
-NetAudioServer::Receiver::Receiver(std::unique_ptr<MulticastSocket> &socketRef, juce::IPAddress localIP,
-                                   juce::IPAddress remoteIP, uint16_t localPort, uint16_t remotePort) :
-        juce::Thread("Receiver Thread"),
-        socket(socketRef),
-        sock(std::make_unique<MulticastSocket>(MulticastSocket::Mode::READ, localIP, remoteIP, localPort, remotePort)) {
+        socket(std::make_unique<MulticastSocket>(MulticastSocket::Mode::READ,
+                                                 localIP,
+                                                 remoteIP,
+                                                 localPort,
+                                                 remotePort)) {
 }
 
 void NetAudioServer::Receiver::prepareToReceive(int numChannelsToSend, int samplesPerBlock, double sampleRate) {
     packet.prepare(numChannelsToSend, samplesPerBlock, sampleRate);
-    sock->connect();
+    socket->connect();
 }
 
 void NetAudioServer::Receiver::run() {
     while (!threadShouldExit()) {
-//        socket->read(packet);
-        sock->read(packet);
-        wait(1);
+        wait(-1);
+        socket->read(packet);
+        auto header{reinterpret_cast<DatagramPacket::PacketHeader *>(packet.getData())};
+//        DBG(header->SeqNumber);
     }
 }
