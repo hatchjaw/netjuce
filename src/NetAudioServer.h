@@ -6,6 +6,7 @@
 #define NETJUCE_NETAUDIOSERVER_H
 
 #include <juce_core/juce_core.h>
+#include <sys/epoll.h>
 #include "Constants.h"
 #include "Utils.h"
 #include "AudioToNetFifo.h"
@@ -26,7 +27,7 @@ public:
 
     void prepareToSend(int samplesPerBlockExpected, double sampleRate);
 
-    bool handleAudioBlock(const juce::AudioSourceChannelInfo &bufferToSend);
+    void handleAudioBlock(const juce::AudioSourceChannelInfo &bufferToSend);
 
     void releaseResources();
 
@@ -37,7 +38,7 @@ private:
      */
     class Sender : public juce::Thread {
     public:
-        Sender(std::unique_ptr<MulticastSocket> &socketRef, AudioToNetFifo &fifoRef);
+        Sender(MulticastSocket::Params &socketParams, AudioToNetFifo &sharedFIFO);
 
         void run() override;
 
@@ -46,7 +47,7 @@ private:
         void prepareToSend(int numChannelsToSend, int samplesPerBlockExpected, double sampleRate);
 
     private:
-        std::unique_ptr<MulticastSocket> &socket;
+        std::unique_ptr<MulticastSocket> socket;
         AudioToNetFifo &fifo;
         DatagramPacket packet;
         int audioBlockSamples{0};
@@ -54,26 +55,25 @@ private:
 
     class Receiver : public juce::Thread {
     public:
-        Receiver(juce::IPAddress localIP,
-                 juce::IPAddress remoteIP,
-                 uint16_t localPort,
-                 uint16_t remotePort);
+        explicit Receiver(MulticastSocket::Params &socketParams);
 
         void run() override;
 
-        void prepareToReceive(int numChannelsToSend, int samplesPerBlock, double sampleRate);
+        void prepareToReceive(int numChannelsToReceive, int samplesPerBlock, double sampleRate);
 
     private:
         std::unique_ptr<MulticastSocket> socket;
         DatagramPacket packet;
     };
 
-    Sender senderThread;
-    Receiver receiverThread;
+    Sender sendThread;
+    Receiver receiveThread;
 
-    std::unique_ptr<MulticastSocket> socket;
+    MulticastSocket::Params socketParams;
     int numChannels;
     AudioToNetFifo fifo;
+
+    juce::CriticalSection lock;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(NetAudioServer)
 };

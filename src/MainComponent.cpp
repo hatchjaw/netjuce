@@ -81,8 +81,5 @@ void MainComponent::getNextAudioBlock(const juce::AudioSourceChannelInfo &buffer
     if (!ready) return;
 
     multiChannelSource->getNextAudioBlock(bufferToFill);
-    if (!netServer->handleAudioBlock(bufferToFill)) {
-//        DBG("Failed to handleAudioBlock UDP packet.");
-//        netServer->disconnect();
-    }
+    netServer->handleAudioBlock(bufferToFill);
 }

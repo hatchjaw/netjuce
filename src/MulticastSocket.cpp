@@ -4,33 +4,29 @@
 
 #include "MulticastSocket.h"
 
-MulticastSocket::MulticastSocket(Mode rwMode,
-                                 const juce::IPAddress &localIP,
-                                 const juce::IPAddress &multicastIP,
-                                 uint16_t localPort,
-                                 uint16_t remotePort,
-                                 uint connectionTimeoutMs) :
+MulticastSocket::MulticastSocket(Mode rwMode, Params &p, uint connectionTimeoutMs) :
         kTimeoutMs(connectionTimeoutMs),
         mode(rwMode),
-        multicastIP(multicastIP),
-        localIPToBind(localIP),
-        localPortToBind(localPort),
-        remotePort(remotePort),
+        params(p),
         socket{std::make_unique<juce::DatagramSocket>()} {}
 
 bool MulticastSocket::connect() {
+    if (socket->getBoundPort() > 0) {
+        return true;
+    }
+
     auto bound{false};
     switch (mode) {
         case READ:
-            bound = socket->bindToPort(localPortToBind);
+            bound = socket->bindToPort(params.LocalPort);
             break;
         case WRITE:
-            bound = socket->bindToPort(localPortToBind, localIPToBind.toString());
+            bound = socket->bindToPort(params.LocalPort, params.LocalIP.toString());
             break;
         default:
             jassertfalse;
     }
-    auto joined{bound && socket->joinMulticast(multicastIP.toString())};
+    auto joined{bound && socket->joinMulticast(params.MulticastIP.toString())};
     socket->setMulticastLoopbackEnabled(false);
     if (!bound || !joined) {
         DBG(strerror(errno));
@@ -40,14 +36,22 @@ bool MulticastSocket::connect() {
 
 void MulticastSocket::write(DatagramPacket &packet) {
     // TODO: check for failure, etc.
-    socket->write(multicastIP.toString(), remotePort, packet.getData(), static_cast<int>(packet.getSize()));
+    socket->write(params.MulticastIP.toString(),
+                  params.RemotePort, packet.getData(),
+                  static_cast<int>(packet.getSize()));
 }
 
 void MulticastSocket::read(DatagramPacket &packet) {
     juce::String senderIP{""};
     int senderPort{0};
-    int bytesRead;
+    int bytesRead, packetsRead{0};
     while ((bytesRead = socket->read(packet.getData(), 1024, false, senderIP, senderPort)) > 0) {
-//        DBG(bytesRead << " bytes read from " << senderIP << ":" << senderPort);
+        ++packetsRead;
+//        DBG("Read " << bytesRead << " bytes from " << senderIP << ":" << senderPort);
     }
+    if (packetsRead != 1) DBG("Packets read: " << packetsRead);
+}
+
+int MulticastSocket::getRawHandle() {
+    return socket->getRawSocketHandle();
 }
