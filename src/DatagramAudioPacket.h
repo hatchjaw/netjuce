@@ -69,7 +69,7 @@ public:
 
     void parseHeader();
 
-    void setOrigin(Origin o);
+    void setOrigin(juce::IPAddress ip, uint16_t port);
 
 private:
     Origin origin;

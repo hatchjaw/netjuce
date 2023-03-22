@@ -45,7 +45,7 @@ int MulticastSocket::read(DatagramAudioPacket &packet) {
     juce::String senderIP{""};
     int senderPort{0};
     int bytesRead{socket->read(packet.getData(), 1024, false, senderIP, senderPort)};
-    packet.setOrigin(DatagramAudioPacket::Origin{juce::IPAddress{senderIP}, static_cast<uint16_t>(senderPort)});
+    packet.setOrigin(juce::IPAddress{senderIP}, senderPort);
     packet.parseHeader();
 //    while ((bytesRead = socket->read(packet.getData(), 1024, false, senderIP, senderPort)) > 0) {
 //        ++packetsRead;

@@ -72,6 +72,7 @@ void DatagramAudioPacket::parseHeader() {
     header = *reinterpret_cast<PacketHeader *>(getData());
 }
 
-void DatagramAudioPacket::setOrigin(DatagramAudioPacket::Origin o) {
-    origin = o;
+void DatagramAudioPacket::setOrigin(juce::IPAddress ip, uint16_t port) {
+    origin.IP = ip;
+    origin.Port = port;
 }

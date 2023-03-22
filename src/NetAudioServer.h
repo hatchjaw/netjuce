@@ -62,7 +62,7 @@ private:
 
 public:
     explicit Receiver(MulticastSocket::Params &socketParams,
-                          std::unordered_map<juce::String, std::unique_ptr<NetAudioPeer>> &peers);
+                          std::unordered_map<juce::String, std::unique_ptr<NetAudioPeer>> &mapOfPeers);
 
         void run() override;
 

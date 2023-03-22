@@ -122,10 +122,10 @@ void NetAudioServer::Sender::prepareToSend(int numChannelsToSend, int samplesPer
 ////////////////////////////////////////////////////////////////////////////////
 // RECEIVER THREAD
 NetAudioServer::Receiver::Receiver(MulticastSocket::Params &socketParams,
-                                   std::unordered_map<juce::String, std::unique_ptr<NetAudioPeer>> &peers) :
+                                   std::unordered_map<juce::String, std::unique_ptr<NetAudioPeer>> &mapOfPeers) :
         juce::Thread("Receiver Thread"),
         socket(std::make_unique<MulticastSocket>(MulticastSocket::Mode::READ, socketParams)),
-        peers(peers) {
+        peers(mapOfPeers) {
 }
 
 void NetAudioServer::Receiver::prepareToReceive(int numChannelsToReceive, int samplesPerBlock, double sampleRate) {
