@@ -34,22 +34,26 @@ bool MulticastSocket::connect() {
     return joined && socket->waitUntilReady(false, static_cast<int>(kTimeoutMs)) == 1;
 }
 
-void MulticastSocket::write(DatagramPacket &packet) {
+void MulticastSocket::write(DatagramAudioPacket &packet) {
     // TODO: check for failure, etc.
     socket->write(params.MulticastIP.toString(),
                   params.RemotePort, packet.getData(),
                   static_cast<int>(packet.getSize()));
 }
 
-void MulticastSocket::read(DatagramPacket &packet) {
+int MulticastSocket::read(DatagramAudioPacket &packet) {
     juce::String senderIP{""};
     int senderPort{0};
-    int bytesRead, packetsRead{0};
-    while ((bytesRead = socket->read(packet.getData(), 1024, false, senderIP, senderPort)) > 0) {
-        ++packetsRead;
-//        DBG("Read " << bytesRead << " bytes from " << senderIP << ":" << senderPort);
-    }
-    if (packetsRead != 1) DBG("Packets read: " << packetsRead);
+    int bytesRead{socket->read(packet.getData(), 1024, false, senderIP, senderPort)};
+    packet.setOrigin(DatagramAudioPacket::Origin{juce::IPAddress{senderIP}, static_cast<uint16_t>(senderPort)});
+    packet.parseHeader();
+//    while ((bytesRead = socket->read(packet.getData(), 1024, false, senderIP, senderPort)) > 0) {
+//        ++packetsRead;
+////        DBG("Read " << bytesRead << " bytes from " << senderIP << ":" << senderPort);
+//    }
+//    if (packetsRead != 1) DBG("Packets read: " << packetsRead);
+
+    return bytesRead;
 }
 
 int MulticastSocket::getRawHandle() {

@@ -6,7 +6,7 @@
 #define NETJUCE_MULTICASTSOCKET_H
 
 #include <juce_core/juce_core.h>
-#include "DatagramPacket.h"
+#include "DatagramAudioPacket.h"
 
 /**
  * Defines a UDP socket for multicast communication.
@@ -39,9 +39,9 @@ public:
 
     bool connect();
 
-    void write(DatagramPacket &packet);
+    void write(DatagramAudioPacket &packet);
 
-    void read(DatagramPacket &packet);
+    int read(DatagramAudioPacket &packet);
 
     int getRawHandle();
 

@@ -10,7 +10,7 @@ NetAudioServer::NetAudioServer(const juce::String &multicastIP,
                                uint16_t remotePortNumber,
                                int numChannelsToSend) :
         sendThread(socketParams, fifo),
-        receiveThread(socketParams),
+        receiveThread(socketParams, peers),
         socketParams({juce::IPAddress{multicastIP},
                       localPortNumber,
                       juce::IPAddress{localIP},
@@ -121,9 +121,11 @@ void NetAudioServer::Sender::prepareToSend(int numChannelsToSend, int samplesPer
 
 ////////////////////////////////////////////////////////////////////////////////
 // RECEIVER THREAD
-NetAudioServer::Receiver::Receiver(MulticastSocket::Params &socketParams) :
+NetAudioServer::Receiver::Receiver(MulticastSocket::Params &socketParams,
+                                   std::unordered_map<juce::String, std::unique_ptr<NetAudioPeer>> &peers) :
         juce::Thread("Receiver Thread"),
-        socket(std::make_unique<MulticastSocket>(MulticastSocket::Mode::READ, socketParams)) {
+        socket(std::make_unique<MulticastSocket>(MulticastSocket::Mode::READ, socketParams)),
+        peers(peers) {
 }
 
 void NetAudioServer::Receiver::prepareToReceive(int numChannelsToReceive, int samplesPerBlock, double sampleRate) {
@@ -155,10 +157,56 @@ void NetAudioServer::Receiver::run() {
         int numEvents = epoll_wait(epollfd, events, maxEvents, -1);
         if (numEvents > 0) {
             if (numEvents > 1) DBG("After epoll_wait: found " << numEvents << " events.");
-            socket->read(packet);
+
+            while (socket->read(packet) > 0) {
+                // There's about to be at least one peer, so start the connectedness checker.
+                if (peers.empty()) {
+                    startTimer(1000);
+                }
+
+                auto peerIP{packet.getOrigin().IP.toString()};
+
+                // TODO: LOCK THE MUTEX ON PEERS
+                auto iter{peers.find(peerIP)};
+                // If an unknown peer...
+                if (iter == peers.end()) {
+                    // ...insert it.
+                    iter = peers.insert(std::make_pair(peerIP, std::make_unique<NetAudioPeer>(packet))).first;
+                    auto o{iter->second->getOrigin()};
+                    std::cout << "Peer " << o.IP.toString() << " connected." << std::endl;
+                }
+                iter->second->handlePacket(packet);
+
+                if (packet.getSeqNumber() % 10000 <= 1) {
+                    std::cout << "Connected peers:" << std::endl;
+                    for (auto &peer: peers) {
+                        std::cout << peer.first << std::endl;
+                    }
+                    std::cout << "Receive, seq no. " << packet.getSeqNumber() <<
+                              " From " << packet.getOrigin().IP.toString() <<
+                              ":" << packet.getOrigin().Port << std::endl;
+                    Utils::hexDump(reinterpret_cast<uint8_t *>(packet.getData()),
+                                   static_cast<int>(packet.getSize()),
+                                   true);
+                }
+            }
         }
     }
 
     close(epollfd);
     DBG("Stopping receive thread");
+}
+
+void NetAudioServer::Receiver::timerCallback() {
+    for (auto it = peers.cbegin(), next = it; it != peers.cend(); it = next) {
+        ++next;
+        if (!it->second->isConnected()) {
+            std::cout << "Peer " << it->second->getOrigin().IP.toString() << " disconnected" << std::endl;
+            peers.erase(it);
+        }
+    }
+
+    if (peers.empty()) {
+        stopTimer();
+    }
 }

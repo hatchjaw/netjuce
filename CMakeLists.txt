@@ -18,7 +18,6 @@ target_compile_definitions(NetJUCE
         DEFAULT_LOCAL_ADDRESS="192.168.10.10"
         DEFAULT_LOCAL_PORT=14841
         DEFAULT_MULTICAST_IP="226.6.38.226"
-#        DEFAULT_MULTICAST_IP="241.81.18.142"
         DEFAULT_REMOTE_PORT=41814
 )
 
@@ -29,8 +28,9 @@ target_sources(NetJUCE
         lib/succulent/MultiChannelAudioSource/MultiChannelAudioSource.cpp
         src/NetAudioServer.cpp
         src/AudioToNetFifo.cpp
-        src/DatagramPacket.cpp
-        src/MulticastSocket.cpp)
+        src/DatagramAudioPacket.cpp
+        src/MulticastSocket.cpp
+        src/NetAudioPeer.cpp)
 
 target_compile_definitions(NetJUCE
         PRIVATE

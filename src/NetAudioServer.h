@@ -6,12 +6,14 @@
 #define NETJUCE_NETAUDIOSERVER_H
 
 #include <juce_core/juce_core.h>
+#include <juce_events/juce_events.h>
 #include <sys/epoll.h>
 #include "Constants.h"
 #include "Utils.h"
 #include "AudioToNetFifo.h"
-#include "DatagramPacket.h"
+#include "DatagramAudioPacket.h"
 #include "MulticastSocket.h"
+#include "NetAudioPeer.h"
 
 class NetAudioServer {
 public:
@@ -49,13 +51,18 @@ private:
     private:
         std::unique_ptr<MulticastSocket> socket;
         AudioToNetFifo &fifo;
-        DatagramPacket packet;
+        DatagramAudioPacket packet;
         int audioBlockSamples{0};
     };
 
-    class Receiver : public juce::Thread {
+class Receiver : public juce::Thread, juce::Timer {
     public:
-        explicit Receiver(MulticastSocket::Params &socketParams);
+private:
+    void timerCallback() override;
+
+public:
+    explicit Receiver(MulticastSocket::Params &socketParams,
+                          std::unordered_map<juce::String, std::unique_ptr<NetAudioPeer>> &peers);
 
         void run() override;
 
@@ -63,7 +70,8 @@ private:
 
     private:
         std::unique_ptr<MulticastSocket> socket;
-        DatagramPacket packet;
+        DatagramAudioPacket packet;
+        std::unordered_map<juce::String, std::unique_ptr<NetAudioPeer>> &peers;
     };
 
     Sender sendThread;
@@ -72,6 +80,7 @@ private:
     MulticastSocket::Params socketParams;
     int numChannels;
     AudioToNetFifo fifo;
+    std::unordered_map<juce::String, std::unique_ptr<NetAudioPeer>> peers;
 
     juce::CriticalSection lock;
 
