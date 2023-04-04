@@ -17,11 +17,11 @@
 
 class NetAudioServer {
 public:
-    explicit NetAudioServer(const juce::String &multicastIP = DEFAULT_MULTICAST_IP,
+    explicit NetAudioServer(int numChannelsToSend = NUM_SOURCES,
+                            const juce::String &multicastIP = DEFAULT_MULTICAST_IP,
                             uint16_t localPortNumber = DEFAULT_LOCAL_PORT,
                             const juce::String &localIP = DEFAULT_LOCAL_ADDRESS,
-                            uint16_t remotePortNumber = DEFAULT_REMOTE_PORT,
-                            int numChannelsToSend = NUM_SOURCES);
+                            uint16_t remotePortNumber = DEFAULT_REMOTE_PORT);
 
     ~NetAudioServer();
 

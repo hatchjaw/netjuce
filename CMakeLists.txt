@@ -13,7 +13,7 @@ target_compile_definitions(NetJUCE
         PRIVATE
         JUCE_JACK=1
         JUCE_JACK_CLIENT_NAME="${PROJECT_NAME}"
-        AUDIO_BLOCK_SAMPLES=32
+        AUDIO_BLOCK_SAMPLES=16
         NUM_SOURCES=2
         DEFAULT_LOCAL_ADDRESS="192.168.10.10"
         DEFAULT_LOCAL_PORT=14841
@@ -55,3 +55,5 @@ if (CMAKE_BUILD_TYPE STREQUAL "Debug" AND CMAKE_SYSTEM_NAME STREQUAL "Darwin")
             COMMAND /bin/sh ${PROJECT_SOURCE_DIR}/lib/succulent/scripts/add_debug_entitlement.sh
             ${PROJECT_BINARY_DIR}/NetJUCE_artefacts/${CMAKE_BUILD_TYPE}/netjuce)
 endif ()
+
+add_subdirectory(src/wfs-plugin)

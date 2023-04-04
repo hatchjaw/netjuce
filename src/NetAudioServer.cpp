@@ -4,11 +4,8 @@
 
 #include "NetAudioServer.h"
 
-NetAudioServer::NetAudioServer(const juce::String &multicastIP,
-                               uint16_t localPortNumber,
-                               const juce::String &localIP,
-                               uint16_t remotePortNumber,
-                               int numChannelsToSend) :
+NetAudioServer::NetAudioServer(int numChannelsToSend, const juce::String &multicastIP, uint16_t localPortNumber,
+                               const juce::String &localIP, uint16_t remotePortNumber) :
         sendThread(socketParams, fifo),
         receiveThread(socketParams, peers),
         socketParams({juce::IPAddress{multicastIP},
@@ -166,14 +163,13 @@ void NetAudioServer::Receiver::run() {
 
                 auto peerIP{packet.getOrigin().IP.toString()};
 
-                // TODO: LOCK THE MUTEX ON PEERS
+                // TODO: LOCK A MUTEX ON PEERS?!
                 auto iter{peers.find(peerIP)};
                 // If an unknown peer...
                 if (iter == peers.end()) {
                     // ...insert it.
                     iter = peers.insert(std::make_pair(peerIP, std::make_unique<NetAudioPeer>(packet))).first;
-                    auto o{iter->second->getOrigin()};
-                    std::cout << "Peer " << o.IP.toString() << " connected." << std::endl;
+                    std::cout << "Peer " << iter->second->getOrigin().IP.toString() << " connected." << std::endl;
                 }
                 iter->second->handlePacket(packet);
 
