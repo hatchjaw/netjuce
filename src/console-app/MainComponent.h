@@ -6,9 +6,9 @@
 #define NETJUCE_MAINCOMPONENT_H
 
 #include <juce_audio_utils/juce_audio_utils.h>
-#include "Constants.h"
-#include "../lib/succulent/MultiChannelAudioSource/MultiChannelAudioSource.h"
-#include "NetAudioServer.h"
+#include "../Constants.h"
+#include "../../lib/succulent/MultiChannelAudioSource/MultiChannelAudioSource.h"
+#include "../NetAudioServer.h"
 
 class MainComponent : public juce::AudioAppComponent {
 public:
