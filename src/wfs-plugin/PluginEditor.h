@@ -1,11 +1,12 @@
 #pragma once
 
 #include "PluginProcessor.h"
+#include "../../lib/succulent/ui/XYController/XYController.h"
 
 //==============================================================================
 class AudioPluginAudioProcessorEditor : public juce::AudioProcessorEditor {
 public:
-    explicit AudioPluginAudioProcessorEditor(AudioPluginAudioProcessor &);
+    AudioPluginAudioProcessorEditor(AudioPluginAudioProcessor &, juce::ValueTree &);
 
     ~AudioPluginAudioProcessorEditor() override;
 
@@ -20,4 +21,8 @@ private:
     AudioPluginAudioProcessor &processorRef;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (AudioPluginAudioProcessorEditor)
+
+    XYController xyController;
+
+    juce::ValueTree &valueTree;
 };

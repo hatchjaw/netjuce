@@ -29,7 +29,9 @@ target_sources(njWfsPlugin
         ../AudioToNetFifo.cpp
         ../DatagramAudioPacket.cpp
         ../MulticastSocket.cpp
-        ../NetAudioPeer.cpp)
+        ../NetAudioPeer.cpp
+        ../../lib/succulent/ui/XYController/XYController.cpp
+        )
 
 target_compile_definitions(njWfsPlugin
         PUBLIC

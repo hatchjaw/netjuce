@@ -4,7 +4,8 @@
 //==============================================================================
 AudioPluginAudioProcessor::AudioPluginAudioProcessor()
         : AudioProcessor(getBusesProperties()),
-          server(std::make_unique<NetAudioServer>()) {
+          server(std::make_unique<NetAudioServer>()),
+          valueTree(std::make_unique<juce::ValueTree>("WFS")) {
 }
 
 AudioPluginAudioProcessor::~AudioPluginAudioProcessor() {
@@ -116,9 +117,9 @@ void AudioPluginAudioProcessor::processBlock(juce::AudioBuffer<float> &buffer,
     for (auto i = totalNumInputChannels; i < totalNumOutputChannels; ++i)
         buffer.clear(i, 0, buffer.getNumSamples());
 
-    juce::AudioSourceChannelInfo b{buffer};
+    juce::AudioSourceChannelInfo block{buffer};
 
-    server->handleAudioBlock(b);
+    server->handleAudioBlock(block);
 
     // This is the place where you'd normally do the guts of your plugin's
     // audio processing...
@@ -129,7 +130,7 @@ void AudioPluginAudioProcessor::processBlock(juce::AudioBuffer<float> &buffer,
     for (int channel = 0; channel < totalNumInputChannels; ++channel) {
         auto *channelData = buffer.getWritePointer(channel);
         juce::ignoreUnused(channelData);
-        // ..do something to the data...
+        // ...do something to the data...
     }
 }
 
@@ -139,7 +140,7 @@ bool AudioPluginAudioProcessor::hasEditor() const {
 }
 
 juce::AudioProcessorEditor *AudioPluginAudioProcessor::createEditor() {
-    return new AudioPluginAudioProcessorEditor(*this);
+    return new AudioPluginAudioProcessorEditor(*this, *valueTree);
 }
 
 //==============================================================================
@@ -158,9 +159,9 @@ void AudioPluginAudioProcessor::setStateInformation(const void *data, int sizeIn
 
 juce::AudioProcessor::BusesProperties AudioPluginAudioProcessor::getBusesProperties() {
     BusesProperties buses;
-    buses.addBus(false, "Output", juce::AudioChannelSet::stereo());
+//    buses.addBus(false, "Output", juce::AudioChannelSet::stereo());
 
-    for (int i = 0; i < NUM_SOURCES; ++i) {
+    for (int i{0}; i < NUM_SOURCES; ++i) {
         buses.addBus(true, "Input #" + juce::String{i + 1}, juce::AudioChannelSet::mono());
     }
 

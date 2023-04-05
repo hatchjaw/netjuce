@@ -61,4 +61,5 @@ private:
     static BusesProperties getBusesProperties();
 
     std::unique_ptr<NetAudioServer> server;
+    std::unique_ptr<juce::ValueTree> valueTree;
 };
