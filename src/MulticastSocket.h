@@ -7,6 +7,7 @@
 
 #include <juce_core/juce_core.h>
 #include "DatagramAudioPacket.h"
+#include "Utils.h"
 
 /**
  * Defines a UDP socket for multicast communication.
@@ -24,10 +25,11 @@
 class MulticastSocket {
 public:
     struct Params {
-        juce::IPAddress MulticastIP;
-        uint16_t LocalPort;
+        juce::IPAddress MulticastIP{"0.0.0.0"};
+        uint16_t LocalPort{0};
         juce::IPAddress LocalIP{"0.0.0.0"};
         uint16_t RemotePort{0};
+        bool debug{false};
     };
 
     enum Mode {

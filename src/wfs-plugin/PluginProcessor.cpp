@@ -5,7 +5,8 @@
 AudioPluginAudioProcessor::AudioPluginAudioProcessor()
         : AudioProcessor(getBusesProperties()),
           server(std::make_unique<NetAudioServer>()),
-          valueTree(std::make_unique<juce::ValueTree>("WFS")) {
+          valueTree(std::make_shared<juce::ValueTree>("WFS")),
+          wfsMessenger(std::make_unique<WFSMessenger>(valueTree)) {
 }
 
 AudioPluginAudioProcessor::~AudioPluginAudioProcessor() {
@@ -69,6 +70,7 @@ void AudioPluginAudioProcessor::changeProgramName(int index, const juce::String 
 //==============================================================================
 void AudioPluginAudioProcessor::prepareToPlay(double sampleRate, int samplesPerBlock) {
     server->prepareToSend(samplesPerBlock, sampleRate);
+    wfsMessenger->connect();
 }
 
 void AudioPluginAudioProcessor::releaseResources() {
@@ -78,6 +80,9 @@ void AudioPluginAudioProcessor::releaseResources() {
 }
 
 bool AudioPluginAudioProcessor::isBusesLayoutSupported(const BusesLayout &layouts) const {
+    // Just approve any channel layout.
+    return true;
+
 #if JucePlugin_IsMidiEffect
     juce::ignoreUnused (layouts);
     return true;
@@ -140,7 +145,7 @@ bool AudioPluginAudioProcessor::hasEditor() const {
 }
 
 juce::AudioProcessorEditor *AudioPluginAudioProcessor::createEditor() {
-    return new AudioPluginAudioProcessorEditor(*this, *valueTree);
+    return new AudioPluginAudioProcessorEditor(*this, valueTree);
 }
 
 //==============================================================================
@@ -159,7 +164,6 @@ void AudioPluginAudioProcessor::setStateInformation(const void *data, int sizeIn
 
 juce::AudioProcessor::BusesProperties AudioPluginAudioProcessor::getBusesProperties() {
     BusesProperties buses;
-//    buses.addBus(false, "Output", juce::AudioChannelSet::stereo());
 
     for (int i{0}; i < NUM_SOURCES; ++i) {
         buses.addBus(true, "Input #" + juce::String{i + 1}, juce::AudioChannelSet::mono());

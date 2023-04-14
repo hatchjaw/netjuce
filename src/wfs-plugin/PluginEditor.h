@@ -6,7 +6,7 @@
 //==============================================================================
 class AudioPluginAudioProcessorEditor : public juce::AudioProcessorEditor {
 public:
-    AudioPluginAudioProcessorEditor(AudioPluginAudioProcessor &, juce::ValueTree &);
+    AudioPluginAudioProcessorEditor(AudioPluginAudioProcessor &, std::shared_ptr<juce::ValueTree>);
 
     ~AudioPluginAudioProcessorEditor() override;
 
@@ -24,5 +24,5 @@ private:
 
     XYController xyController;
 
-    juce::ValueTree &valueTree;
+    std::shared_ptr<juce::ValueTree> valueTree;
 };

@@ -21,7 +21,8 @@ public:
                             const juce::String &multicastIP = DEFAULT_MULTICAST_IP,
                             uint16_t localPortNumber = DEFAULT_LOCAL_PORT,
                             const juce::String &localIP = DEFAULT_LOCAL_ADDRESS,
-                            uint16_t remotePortNumber = DEFAULT_REMOTE_PORT);
+                            uint16_t remotePortNumber = DEFAULT_REMOTE_PORT,
+                            bool shouldDebug = false);
 
     ~NetAudioServer();
 
@@ -55,13 +56,13 @@ private:
         int audioBlockSamples{0};
     };
 
-class Receiver : public juce::Thread, juce::Timer {
+    class Receiver : public juce::Thread, juce::Timer {
     public:
-private:
-    void timerCallback() override;
+    private:
+        void timerCallback() override;
 
-public:
-    explicit Receiver(MulticastSocket::Params &socketParams,
+    public:
+        explicit Receiver(MulticastSocket::Params &socketParams,
                           std::unordered_map<juce::String, std::unique_ptr<NetAudioPeer>> &mapOfPeers);
 
         void run() override;
@@ -72,6 +73,7 @@ public:
         std::unique_ptr<MulticastSocket> socket;
         DatagramAudioPacket packet;
         std::unordered_map<juce::String, std::unique_ptr<NetAudioPeer>> &peers;
+        bool debug;
     };
 
     Sender sendThread;

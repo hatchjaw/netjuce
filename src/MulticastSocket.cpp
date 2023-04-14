@@ -35,9 +35,16 @@ bool MulticastSocket::connect() {
 }
 
 void MulticastSocket::write(DatagramAudioPacket &packet) {
+    if (params.debug && packet.getSeqNumber() % 10000 <= 1) {
+        std::cout << "Send, seq no. " << packet.getSeqNumber() << std::endl;
+        std::cout << "Destination: " << params.MulticastIP.toString() << ":" << params.RemotePort << std::endl;
+        Utils::hexDump(reinterpret_cast<uint8_t *>(packet.getData()), static_cast<int>(packet.getSize()), true);
+    }
+
     // TODO: check for failure, etc.
     socket->write(params.MulticastIP.toString(),
-                  params.RemotePort, packet.getData(),
+                  params.RemotePort,
+                  packet.getData(),
                   static_cast<int>(packet.getSize()));
 }
 
@@ -47,11 +54,6 @@ int MulticastSocket::read(DatagramAudioPacket &packet) {
     int bytesRead{socket->read(packet.getData(), 1024, false, senderIP, senderPort)};
     packet.setOrigin(juce::IPAddress{senderIP}, senderPort);
     packet.parseHeader();
-//    while ((bytesRead = socket->read(packet.getData(), 1024, false, senderIP, senderPort)) > 0) {
-//        ++packetsRead;
-////        DBG("Read " << bytesRead << " bytes from " << senderIP << ":" << senderPort);
-//    }
-//    if (packetsRead != 1) DBG("Packets read: " << packetsRead);
 
     return bytesRead;
 }

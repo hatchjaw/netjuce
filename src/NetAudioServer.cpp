@@ -4,14 +4,16 @@
 
 #include "NetAudioServer.h"
 
-NetAudioServer::NetAudioServer(int numChannelsToSend, const juce::String &multicastIP, uint16_t localPortNumber,
-                               const juce::String &localIP, uint16_t remotePortNumber) :
+NetAudioServer::NetAudioServer(int numChannelsToSend, const juce::String &multicastIP,
+                               uint16_t localPortNumber, const juce::String &localIP,
+                               uint16_t remotePortNumber, bool shouldDebug) :
         sendThread(socketParams, fifo),
         receiveThread(socketParams, peers),
         socketParams({juce::IPAddress{multicastIP},
                       localPortNumber,
                       juce::IPAddress{localIP},
-                      remotePortNumber}),
+                      remotePortNumber,
+                      shouldDebug}),
         numChannels(numChannelsToSend),
         fifo(numChannelsToSend) {
 }
@@ -85,6 +87,7 @@ void NetAudioServer::Sender::run() {
 //                DBG("Send thread connected.");
 //            }
 //        } else { // Send stuff.
+
         // Wait for notification from the audio callback.
         wait(-1);
 
@@ -92,10 +95,6 @@ void NetAudioServer::Sender::run() {
         fifo.read(packet.getAudioData(), audioBlockSamples);
         // Write the header to the packet.
         packet.writeHeader();
-        if (packet.getSeqNumber() % 10000 <= 1) {
-            std::cout << "Send, seq no. " << packet.getSeqNumber() << std::endl;
-            Utils::hexDump(reinterpret_cast<uint8_t *>(packet.getData()), static_cast<int>(packet.getSize()), true);
-        }
         // Write the packet to the socket.
         socket->write(packet);
         packet.incrementSeqNumber();
@@ -122,10 +121,12 @@ NetAudioServer::Receiver::Receiver(MulticastSocket::Params &socketParams,
                                    std::unordered_map<juce::String, std::unique_ptr<NetAudioPeer>> &mapOfPeers) :
         juce::Thread("Receiver Thread"),
         socket(std::make_unique<MulticastSocket>(MulticastSocket::Mode::READ, socketParams)),
-        peers(mapOfPeers) {
+        peers(mapOfPeers),
+        debug(socketParams.debug) {
 }
 
 void NetAudioServer::Receiver::prepareToReceive(int numChannelsToReceive, int samplesPerBlock, double sampleRate) {
+    // TODO: num channels may not actually match what's being sent by clients. Fix this.
     packet.prepare(numChannelsToReceive, samplesPerBlock, sampleRate);
     if (socket->connect()) {
         DBG("Receive thread connected.");
@@ -173,7 +174,7 @@ void NetAudioServer::Receiver::run() {
                 }
                 iter->second->handlePacket(packet);
 
-                if (packet.getSeqNumber() % 10000 <= 1) {
+                if (debug && packet.getSeqNumber() % 10000 <= 1) {
                     std::cout << "Connected peers:" << std::endl;
                     for (auto &peer: peers) {
                         std::cout << peer.first << std::endl;

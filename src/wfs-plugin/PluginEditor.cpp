@@ -2,9 +2,11 @@
 #include "PluginEditor.h"
 
 //==============================================================================
-AudioPluginAudioProcessorEditor::AudioPluginAudioProcessorEditor(AudioPluginAudioProcessor &p, juce::ValueTree &vt)
+AudioPluginAudioProcessorEditor::AudioPluginAudioProcessorEditor(AudioPluginAudioProcessor &p,
+                                                                 std::shared_ptr<juce::ValueTree> vt)
         : AudioProcessorEditor(&p),
           processorRef(p),
+          xyController(NUM_SOURCES),
           valueTree(vt) {
     juce::ignoreUnused(processorRef);
     // Make sure that before the constructor has finished, you've set the
@@ -12,9 +14,13 @@ AudioPluginAudioProcessorEditor::AudioPluginAudioProcessorEditor(AudioPluginAudi
     setSize(1000, 800);
 
     addAndMakeVisible(xyController);
+    for (int i{0}; i < NUM_SOURCES; ++i) {
+        xyController.addNode({valueTree->getProperty("/source/" + juce::String{i} + "/x"),
+                              valueTree->getProperty("/source/" + juce::String{i} + "/y")});
+    }
     xyController.onValueChange = [this](uint nodeIndex, juce::Point<float> position) {
-        valueTree.setProperty("/source/" + juce::String{nodeIndex} + "/x", position.x, nullptr);
-        valueTree.setProperty("/source/" + juce::String{nodeIndex} + "/y", position.y, nullptr);
+        valueTree->setProperty("/source/" + juce::String{nodeIndex} + "/x", position.x, nullptr);
+        valueTree->setProperty("/source/" + juce::String{nodeIndex} + "/y", position.y, nullptr);
     };
 }
 

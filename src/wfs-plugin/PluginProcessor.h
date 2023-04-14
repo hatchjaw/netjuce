@@ -2,6 +2,7 @@
 
 #include <juce_audio_processors/juce_audio_processors.h>
 #include "../NetAudioServer.h"
+#include "WFSMessenger.h"
 
 //==============================================================================
 class AudioPluginAudioProcessor : public juce::AudioProcessor {
@@ -61,5 +62,6 @@ private:
     static BusesProperties getBusesProperties();
 
     std::unique_ptr<NetAudioServer> server;
-    std::unique_ptr<juce::ValueTree> valueTree;
+    std::shared_ptr<juce::ValueTree> valueTree;
+    std::unique_ptr<WFSMessenger> wfsMessenger;
 };
