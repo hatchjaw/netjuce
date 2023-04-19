@@ -31,6 +31,8 @@ bool MulticastSocket::connect() {
     if (!bound || !joined) {
         DBG(strerror(errno));
     }
+    // OK... waiting for read-readiness doesn't appear to work. Perhaps because
+    // there may not be an incoming network stream at this stage?
     return joined && socket->waitUntilReady(false, static_cast<int>(kTimeoutMs)) == 1;
 }
 

@@ -55,7 +55,7 @@ using ConverterF32I16 = juce::AudioData::ConverterInstance<
                 //00a0   7f fe 7f fd 7f fe 7f fe 7f fe
                 //
                 // Where up to 0029 is header (obviously no 16 byte jacktrip
-                // header here)
+                // header here -- [NB, this was before introduction of a NetJUCE header])
                 // As can be seen, each 16-bit (2-byte) word is reversed in the
                 // Big endian version.
                 //
@@ -106,7 +106,7 @@ public:
      * @param dest The destination buffer to read into.
      * @param numSamples The number of samples to read for each channel of the fifo.
      */
-    void read(uint8_t *dest, int numSamples);
+    int read(uint8_t *dest, int numSamples);
 
 private:
     const int kBytesPerSample{sizeof(int16_t)};
@@ -114,6 +114,7 @@ private:
     std::unique_ptr<juce::AudioBuffer<float>> buffer;
     std::unique_ptr<ConverterF32I16> converter;
     juce::CriticalSection mutex;
+    int start1{0}, size1{0}, start2{0}, size2{0};
 };
 
 

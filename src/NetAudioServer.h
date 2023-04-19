@@ -22,7 +22,7 @@ public:
                             uint16_t localPortNumber = DEFAULT_LOCAL_PORT,
                             const juce::String &localIP = DEFAULT_LOCAL_ADDRESS,
                             uint16_t remotePortNumber = DEFAULT_REMOTE_PORT,
-                            bool shouldDebug = false);
+                            bool shouldDebug = true);
 
     ~NetAudioServer();
 
@@ -34,12 +34,14 @@ public:
 
     void releaseResources();
 
+    std::function<void()> onPeerConnected;
+
 private:
     /**
      * A thread for multicasting UDP packets. Attempts to set up a connection if
      * one hasn't been established.
      */
-    class Sender : public juce::Thread {
+    class Sender : public juce::Thread, private juce::Timer {
     public:
         Sender(MulticastSocket::Params &socketParams, AudioToNetFifo &sharedFIFO);
 
@@ -50,17 +52,15 @@ private:
         void prepareToSend(int numChannelsToSend, int samplesPerBlockExpected, double sampleRate);
 
     private:
+        void timerCallback() override;
+
         std::unique_ptr<MulticastSocket> socket;
         AudioToNetFifo &fifo;
         DatagramAudioPacket packet;
         int audioBlockSamples{0};
     };
 
-    class Receiver : public juce::Thread, juce::Timer {
-    public:
-    private:
-        void timerCallback() override;
-
+    class Receiver : public juce::Thread, private juce::Timer {
     public:
         explicit Receiver(MulticastSocket::Params &socketParams,
                           std::unordered_map<juce::String, std::unique_ptr<NetAudioPeer>> &mapOfPeers);
@@ -69,11 +69,16 @@ private:
 
         void prepareToReceive(int numChannelsToReceive, int samplesPerBlock, double sampleRate);
 
+        std::function<void()> onPeerConnected;
+        juce::Atomic<bool> connected{false};
     private:
+
+        void timerCallback() override;
+
         std::unique_ptr<MulticastSocket> socket;
         DatagramAudioPacket packet;
         std::unordered_map<juce::String, std::unique_ptr<NetAudioPeer>> &peers;
-        bool debug;
+        bool &debug;
     };
 
     Sender sendThread;

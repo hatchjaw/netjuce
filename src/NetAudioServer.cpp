@@ -16,6 +16,11 @@ NetAudioServer::NetAudioServer(int numChannelsToSend, const juce::String &multic
                       shouldDebug}),
         numChannels(numChannelsToSend),
         fifo(numChannelsToSend) {
+    receiveThread.onPeerConnected = [this]() {
+        if (onPeerConnected != nullptr) {
+            onPeerConnected();
+        }
+    };
 }
 
 NetAudioServer::~NetAudioServer() {
@@ -35,11 +40,13 @@ void NetAudioServer::disconnect() {
 }
 
 void NetAudioServer::prepareToSend(int samplesPerBlockExpected, double sampleRate) {
-    fifo.setSize(samplesPerBlockExpected, 4);
+    fifo.setSize(samplesPerBlockExpected, 8);
+
     sendThread.prepareToSend(numChannels, samplesPerBlockExpected, sampleRate);
     receiveThread.prepareToReceive(numChannels, samplesPerBlockExpected, sampleRate);
-    sendThread.startThread();
-    receiveThread.startThread();
+
+//    sendThread.startThread();
+//    receiveThread.startThread();
 }
 
 void NetAudioServer::handleAudioBlock(const juce::AudioSourceChannelInfo &bufferToSend) {
@@ -51,7 +58,7 @@ void NetAudioServer::handleAudioBlock(const juce::AudioSourceChannelInfo &buffer
         // Let the sender thread know there's a packet ready to send.
         sendThread.notify();
     } else {
-        DBG("NetAudioServer is not connected.");
+//        DBG("NetAudioServer is not connected.");
 //        connectorThread.startThread();
     }
 }
@@ -76,20 +83,10 @@ NetAudioServer::Sender::Sender(MulticastSocket::Params &socketParams,
 
 void NetAudioServer::Sender::run() {
     while (!threadShouldExit()) {
-//        // Attempt to bind a port and join the multicast group.
-//        if (!connected.get()) {
-//            auto ready{socket->connect()};
-//            connected.set(ready);
-//            if (!ready) {
-//                DBG("Send thread failed to connect.");
-//                wait(1000);
-//            } else {
-//                DBG("Send thread connected.");
-//            }
-//        } else { // Send stuff.
-
-        // Wait for notification from the audio callback.
-        wait(-1);
+        // Wait for notification from the audio thread.
+        if (!wait(100)) {
+            DBG("Sender thread wait timed out.\n");
+        }
 
         // Read from the fifo into the packet.
         fifo.read(packet.getAudioData(), audioBlockSamples);
@@ -98,7 +95,6 @@ void NetAudioServer::Sender::run() {
         // Write the packet to the socket.
         socket->write(packet);
         packet.incrementSeqNumber();
-//        }
     }
 
     DBG("Stopping send thread");
@@ -107,9 +103,15 @@ void NetAudioServer::Sender::run() {
 void NetAudioServer::Sender::prepareToSend(int numChannelsToSend, int samplesPerBlockExpected, double sampleRate) {
     packet.prepare(numChannelsToSend, samplesPerBlockExpected, sampleRate);
     audioBlockSamples = samplesPerBlockExpected;
+    startTimer(1000);
+}
+
+void NetAudioServer::Sender::timerCallback() {
     if (socket->connect()) {
         DBG("Send thread connected.");
         connected.set(true);
+        startThread();
+        stopTimer();
     } else {
         DBG("Send thread failed to connect.");
     }
@@ -128,8 +130,11 @@ NetAudioServer::Receiver::Receiver(MulticastSocket::Params &socketParams,
 void NetAudioServer::Receiver::prepareToReceive(int numChannelsToReceive, int samplesPerBlock, double sampleRate) {
     // TODO: num channels may not actually match what's being sent by clients. Fix this.
     packet.prepare(numChannelsToReceive, samplesPerBlock, sampleRate);
+    // Receive thread probably won't fail to connect as it's just listening... maybe check this.
     if (socket->connect()) {
         DBG("Receive thread connected.");
+        connected.set(true);
+        startThread();
     } else {
         DBG("Receive thread failed to connect.");
     }
@@ -152,9 +157,11 @@ void NetAudioServer::Receiver::run() {
 
     while (!threadShouldExit()) {
 //        int numEvents = epoll_wait(epollfd, &event, 1, -1); // If using a single event.
-        int numEvents = epoll_wait(epollfd, events, maxEvents, -1);
+        int numEvents = epoll_wait(epollfd, events, maxEvents, 100);
         if (numEvents > 0) {
-            if (numEvents > 1) DBG("After epoll_wait: found " << numEvents << " events.");
+            if (numEvents > 1) {
+                DBG("After epoll_wait: found " << numEvents << " events.");
+            }
 
             while (socket->read(packet) > 0) {
                 // There's about to be at least one peer, so start the connectedness checker.
@@ -164,13 +171,16 @@ void NetAudioServer::Receiver::run() {
 
                 auto peerIP{packet.getOrigin().IP.toString()};
 
-                // TODO: LOCK A MUTEX ON PEERS?!
                 auto iter{peers.find(peerIP)};
                 // If an unknown peer...
                 if (iter == peers.end()) {
                     // ...insert it.
                     iter = peers.insert(std::make_pair(peerIP, std::make_unique<NetAudioPeer>(packet))).first;
                     std::cout << "Peer " << iter->second->getOrigin().IP.toString() << " connected." << std::endl;
+
+                    if (onPeerConnected != nullptr) {
+                        onPeerConnected();
+                    }
                 }
                 iter->second->handlePacket(packet);
 
@@ -195,6 +205,7 @@ void NetAudioServer::Receiver::run() {
 }
 
 void NetAudioServer::Receiver::timerCallback() {
+    // Check client connectivity.
     for (auto it = peers.cbegin(), next = it; it != peers.cend(); it = next) {
         ++next;
         if (!it->second->isConnected()) {
