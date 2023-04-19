@@ -5,22 +5,21 @@
 #pragma once
 
 #include <juce_core/juce_core.h>
-#include <juce_data_structures/juce_data_structures.h>
 #include <juce_osc/juce_osc.h>
+#include <juce_audio_processors/juce_audio_processors.h>
 
-class WFSMessenger : public juce::OSCSender, public juce::ValueTree::Listener {
+class WFSMessenger : public juce::OSCSender,
+                     public juce::AudioProcessorValueTreeState::Listener {
 public:
-    explicit WFSMessenger(std::shared_ptr<juce::ValueTree> tree);
+    explicit WFSMessenger(juce::AudioProcessorValueTreeState &state);
 
     ~WFSMessenger() override;
 
     void connect();
 
-    void valueTreePropertyChanged(
-            juce::ValueTree &treeWhosePropertyHasChanged,
-            const juce::Identifier &property) override;
+    void parameterChanged(const juce::String &parameterID, float newValue) override;
 
 private:
     std::unique_ptr<juce::DatagramSocket> socket;
-    std::shared_ptr<juce::ValueTree> valueTree;
+    juce::AudioProcessorValueTreeState &apvts;
 };

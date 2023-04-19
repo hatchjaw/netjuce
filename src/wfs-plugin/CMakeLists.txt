@@ -11,13 +11,11 @@ juce_add_plugin(njWfsPlugin
 
 target_compile_definitions(njWfsPlugin
         PRIVATE
-#        JUCE_JACK=1
-#        JUCE_JACK_CLIENT_NAME="${PROJECT_NAME}"
-        AUDIO_BLOCK_SAMPLES=32
         NUM_SOURCES=8
         DEFAULT_LOCAL_ADDRESS="192.168.10.10"
         DEFAULT_LOCAL_PORT=14841
         DEFAULT_MULTICAST_IP="226.6.38.226"
+        DEFAULT_OSC_MULTICAST_IP="226.6.38.227"
         DEFAULT_REMOTE_PORT=41814
         )
 
@@ -32,6 +30,7 @@ target_sources(njWfsPlugin
         ../MulticastSocket.cpp
         ../NetAudioPeer.cpp
         ../../lib/succulent/ui/XYController/XYController.cpp
+        ../../lib/succulent/ui/XYController/XYControllerAttachment.cpp
         )
 
 target_compile_definitions(njWfsPlugin

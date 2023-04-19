@@ -61,7 +61,11 @@ private:
 
     static BusesProperties getBusesProperties();
 
+    static juce::AudioProcessorValueTreeState::ParameterLayout createParameterLayout();
+
     std::unique_ptr<NetAudioServer> server;
-    std::shared_ptr<juce::ValueTree> valueTree;
+//    std::shared_ptr<juce::ValueTree> valueTree;
     std::unique_ptr<WFSMessenger> wfsMessenger;
+
+    juce::AudioProcessorValueTreeState apvts;
 };
