@@ -16,10 +16,22 @@ NetAudioServer::NetAudioServer(int numChannelsToSend, const juce::String &multic
                       shouldDebug}),
         numChannels(numChannelsToSend),
         fifo(numChannelsToSend) {
+
     receiveThread.onPeerConnected = [this]() {
-        if (onPeerConnected != nullptr) {
-            onPeerConnected();
-        }
+        juce::MessageManager::callAsync([this]() {
+            if (onPeerConnected != nullptr)
+                onPeerConnected();
+            if (onPeersChanged != nullptr)
+                onPeersChanged(getConnectedPeers());
+        });
+    };
+    receiveThread.onPeerDisconnected = [this]() {
+        juce::MessageManager::callAsync([this]() {
+            if (onPeerDisconnected != nullptr)
+                onPeerDisconnected();
+            if (onPeersChanged != nullptr)
+                onPeersChanged(getConnectedPeers());
+        });
     };
 }
 
@@ -44,9 +56,6 @@ void NetAudioServer::prepareToSend(int samplesPerBlockExpected, double sampleRat
 
     sendThread.prepareToSend(numChannels, samplesPerBlockExpected, sampleRate);
     receiveThread.prepareToReceive(numChannels, samplesPerBlockExpected, sampleRate);
-
-//    sendThread.startThread();
-//    receiveThread.startThread();
 }
 
 void NetAudioServer::handleAudioBlock(const juce::AudioSourceChannelInfo &bufferToSend) {
@@ -70,6 +79,15 @@ void NetAudioServer::releaseResources() {
     if (receiveThread.isThreadRunning()) {
         receiveThread.stopThread(1000);
     }
+}
+
+juce::StringArray &NetAudioServer::getConnectedPeers() {
+    static juce::StringArray ips;
+    ips.clear();
+    for (const auto &p: peers) {
+        ips.add(p.second->getOrigin().IP.toString());
+    }
+    return ips;
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -211,6 +229,9 @@ void NetAudioServer::Receiver::timerCallback() {
         if (!it->second->isConnected()) {
             std::cout << "Peer " << it->second->getOrigin().IP.toString() << " disconnected" << std::endl;
             peers.erase(it);
+            if (onPeerDisconnected != nullptr) {
+                onPeerDisconnected();
+            }
         }
     }
 

@@ -8,8 +8,8 @@
 class AudioPluginAudioProcessorEditor : public juce::AudioProcessorEditor {
 public:
     AudioPluginAudioProcessorEditor(AudioPluginAudioProcessor &,
-//                                    std::shared_ptr<juce::ValueTree>,
-                                    juce::AudioProcessorValueTreeState &);
+                                    juce::AudioProcessorValueTreeState &,
+                                    juce::ValueTree &vt);
 
     ~AudioPluginAudioProcessorEditor() override;
 
@@ -17,6 +17,8 @@ public:
     void paint(juce::Graphics &) override;
 
     void resized() override;
+
+    void updateModuleLists(const juce::StringArray& peerIPs);
 
 private:
     // This reference is provided as a quick way for your editor to
@@ -28,7 +30,8 @@ private:
     XYController xyController;
     std::vector<std::unique_ptr<XYControllerNodeAttachment>> xyNodeAttachments;
 
-//    std::shared_ptr<juce::ValueTree> valueTree;
+    juce::OwnedArray<juce::ComboBox> moduleSelectors;
 
     juce::AudioProcessorValueTreeState &valueTreeState;
+    juce::ValueTree &dynamicTree;
 };

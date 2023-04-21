@@ -22,7 +22,7 @@ public:
                             uint16_t localPortNumber = DEFAULT_LOCAL_PORT,
                             const juce::String &localIP = DEFAULT_LOCAL_ADDRESS,
                             uint16_t remotePortNumber = DEFAULT_REMOTE_PORT,
-                            bool shouldDebug = true);
+                            bool shouldDebug = false);
 
     ~NetAudioServer();
 
@@ -35,6 +35,10 @@ public:
     void releaseResources();
 
     std::function<void()> onPeerConnected;
+    std::function<void()> onPeerDisconnected;
+    std::function<void(juce::StringArray &)> onPeersChanged;
+
+    juce::StringArray &getConnectedPeers();
 
 private:
     /**
@@ -70,6 +74,7 @@ private:
         void prepareToReceive(int numChannelsToReceive, int samplesPerBlock, double sampleRate);
 
         std::function<void()> onPeerConnected;
+        std::function<void()> onPeerDisconnected;
         juce::Atomic<bool> connected{false};
     private:
 

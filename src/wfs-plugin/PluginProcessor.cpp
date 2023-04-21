@@ -1,50 +1,50 @@
 #include "PluginProcessor.h"
 #include "PluginEditor.h"
+#include "Utils.h"
 
 //==============================================================================
 AudioPluginAudioProcessor::AudioPluginAudioProcessor()
         : AudioProcessor(getBusesProperties()),
           server(std::make_unique<NetAudioServer>()),
-//          valueTree(std::make_shared<juce::ValueTree>("WFS")),
-          wfsMessenger(std::make_unique<WFSMessenger>(
-//                  valueTree,
-                  apvts)),
-          apvts(*this, nullptr, "WFS Parameters", createParameterLayout()) {
+          wfsMessenger(std::make_unique<WFSMessenger>()),
+          apvts(*this, nullptr, "WFS Parameters", createParameterLayout()),
+          dynamicTree("Module Parameters") {
 
-//    // Set initial source positions to the value tree.
-    for (int i{0}; i < NUM_SOURCES; ++i) {
-//        valueTree->setPropertyExcludingListener(wfsMessenger.get(),
-//                                                "/source/" + juce::String{i} + "/x",
-//                                                (static_cast<float>(i) + .5f) / NUM_SOURCES,
-//                                                nullptr);
-//        valueTree->setPropertyExcludingListener(wfsMessenger.get(),
-//                                                "/source/" + juce::String{i} + "/y",
-//                                                .5f,
-//                                                nullptr);
-        apvts.addParameterListener("/source/" + juce::String{i} + "/x", wfsMessenger.get());
-        apvts.addParameterListener("/source/" + juce::String{i} + "/y", wfsMessenger.get());
+    // Add the OSC messenger as a listener to the source positions.
+    for (uint i{0}; i < NUM_SOURCES; ++i) {
+        apvts.addParameterListener(njwfs::Utils::getSourcePositionParamID(i, njwfs::SourcePositionAxis::X),
+                                   wfsMessenger.get());
+        apvts.addParameterListener(njwfs::Utils::getSourcePositionParamID(i, njwfs::SourcePositionAxis::Y),
+                                   wfsMessenger.get());
     }
+    apvts.addParameterListener("/spacing", wfsMessenger.get());
+    dynamicTree.addListener(wfsMessenger.get());
 
     // Notify new peers of source positions.
     server->onPeerConnected = [this]() {
-        for (int i{0}; i < NUM_SOURCES; ++i) {
-            wfsMessenger->parameterChanged(
-                    "/source/" + juce::String{i} + "/x",
-                    apvts.getRawParameterValue("/source/" + juce::String{i} + "/x")->load()
-            );
-            wfsMessenger->parameterChanged(
-                    "/source/" + juce::String{i} + "/y",
-                    apvts.getRawParameterValue("/source/" + juce::String{i} + "/y")->load()
-            );
+        for (uint i{0}; i < NUM_SOURCES; ++i) {
+            auto idX{njwfs::Utils::getSourcePositionParamID(i, njwfs::SourcePositionAxis::X)},
+                    idY{njwfs::Utils::getSourcePositionParamID(i, njwfs::SourcePositionAxis::Y)};
+            wfsMessenger->parameterChanged(idX, apvts.getRawParameterValue(idX)->load());
+            wfsMessenger->parameterChanged(idY, apvts.getRawParameterValue(idY)->load());
+        }
+    };
 
-//            valueTree->sendPropertyChangeMessage("/source/" + juce::String{i} + "/x");
-//            valueTree->sendPropertyChangeMessage("/source/" + juce::String{i} + "/y");
+    server->onPeersChanged = [this](juce::StringArray &peerIPs) {
+        // Remind the modules of their positions.
+        for (int j{0}; j < NUM_MODULES; ++j) {
+            auto prop{njwfs::Utils::getModuleParamID(static_cast<uint>(j))};
+            dynamicTree.sendPropertyChangeMessage(prop);
+        }
+
+        // Update the editor, if there is one.
+        if (auto *editor = dynamic_cast<AudioPluginAudioProcessorEditor *>(getActiveEditor())) {
+            editor->updateModuleLists(peerIPs);
         }
     };
 }
 
-AudioPluginAudioProcessor::~AudioPluginAudioProcessor() {
-}
+AudioPluginAudioProcessor::~AudioPluginAudioProcessor() = default;
 
 //==============================================================================
 const juce::String AudioPluginAudioProcessor::getName() const {
@@ -179,9 +179,7 @@ bool AudioPluginAudioProcessor::hasEditor() const {
 }
 
 juce::AudioProcessorEditor *AudioPluginAudioProcessor::createEditor() {
-    return new AudioPluginAudioProcessorEditor(*this,
-//                                               valueTree,
-                                               apvts);
+    return new AudioPluginAudioProcessorEditor(*this, apvts, dynamicTree);
 }
 
 //==============================================================================
@@ -201,9 +199,11 @@ void AudioPluginAudioProcessor::setStateInformation(const void *data, int sizeIn
 juce::AudioProcessor::BusesProperties AudioPluginAudioProcessor::getBusesProperties() {
     BusesProperties buses;
 
-    for (int i{0}; i < NUM_SOURCES; ++i) {
-        buses.addBus(true, "Input #" + juce::String{i + 1}, juce::AudioChannelSet::mono());
-    }
+//    for (int i{0}; i < NUM_SOURCES; ++i) {
+//        buses.addBus(true, "Input #" + juce::String{i + 1}, juce::AudioChannelSet::mono());
+//    }
+
+    buses.addBus(true, "Input", juce::AudioChannelSet::octagonal());
 
     return buses;
 }
@@ -211,18 +211,22 @@ juce::AudioProcessor::BusesProperties AudioPluginAudioProcessor::getBusesPropert
 juce::AudioProcessorValueTreeState::ParameterLayout AudioPluginAudioProcessor::createParameterLayout() {
     juce::AudioProcessorValueTreeState::ParameterLayout params;
 
-    // TODO: don't hardcode max modules.
-//    params.add(std::make_unique<juce::AudioParameterInt>("MODULE_ID", "Module ID", 0, 7, 0));
+    params.add(std::make_unique<juce::AudioParameterFloat>(
+            "/spacing",
+            "Speaker Interval (m)",
+            juce::NormalisableRange<float>{.05f, .5f, .01f},
+            .2f
+    ));
 
-    for (int i{0}; i < NUM_SOURCES; ++i) {
+    for (uint i{0}; i < NUM_SOURCES; ++i) {
         params.add(std::make_unique<juce::AudioParameterFloat>(
-                "/source/" + juce::String{i} + "/x",
+                njwfs::Utils::getSourcePositionParamID(i, njwfs::SourcePositionAxis::X),
                 "Source " + juce::String{i + 1} + " X",
                 juce::NormalisableRange<float>{0.f, 1.f, 1e-6},
                 (static_cast<float>(i) + .5f) / NUM_SOURCES
         ));
         params.add(std::make_unique<juce::AudioParameterFloat>(
-                "/source/" + juce::String{i} + "/y",
+                njwfs::Utils::getSourcePositionParamID(i, njwfs::SourcePositionAxis::Y),
                 "Source " + juce::String{i + 1} + " Y",
                 juce::NormalisableRange<float>{0.f, 1.f, 1e-6},
                 .5f
@@ -230,6 +234,15 @@ juce::AudioProcessorValueTreeState::ParameterLayout AudioPluginAudioProcessor::c
     }
 
     return params;
+}
+
+const juce::StringArray &AudioPluginAudioProcessor::getConnectedPeers() {
+//    auto peers = new juce::StringArray;
+//    for (const auto &p: server->getConnectedPeers()) {
+//        peers->add(p);
+//    }
+//    return *peers;
+    return server->getConnectedPeers();
 }
 
 //==============================================================================

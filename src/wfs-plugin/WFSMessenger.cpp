@@ -4,9 +4,8 @@
 
 #include "WFSMessenger.h"
 
-WFSMessenger::WFSMessenger(juce::AudioProcessorValueTreeState &state) :
-        socket(std::make_unique<juce::DatagramSocket>()),
-        apvts(state) {}
+WFSMessenger::WFSMessenger() :
+        socket(std::make_unique<juce::DatagramSocket>()) {}
 
 WFSMessenger::~WFSMessenger() = default;
 
@@ -17,23 +16,28 @@ void WFSMessenger::connect() {
     // TODO: make these specifiable via the UI
     socket->bindToPort(8888, DEFAULT_LOCAL_ADDRESS);
     // TODO: also make multicast IP and port specifiable via the UI.
-    connectToSocket(*socket, DEFAULT_OSC_MULTICAST_IP, 41815);
+    connectToSocket(*socket, DEFAULT_MULTICAST_IP, DEFAULT_REMOTE_PORT + 1);
 }
 
 void WFSMessenger::parameterChanged(const juce::String &parameterID, float newValue) {
 //    DBG("In apvts::Listener parameterChanged");
 
     juce::OSCBundle bundle;
-
-    if (parameterID.contains("module")) {
-        DBG("Sending OSC: " << parameterID << " " << apvts.state.getProperty(parameterID).toString());
-        bundle.addElement(juce::OSCMessage{parameterID, apvts.state.getProperty(parameterID).toString()});
-    } else {
-        DBG("Sending OSC: " << parameterID << " " << newValue);
-        bundle.addElement(juce::OSCMessage{parameterID, newValue});
-    }
-
+    //        DBG("Sending OSC: " << parameterID << " " << newValue);
+    bundle.addElement(juce::OSCMessage{parameterID, newValue});
     send(bundle);
 }
 
-
+void WFSMessenger::valueTreePropertyChanged(juce::ValueTree &tree,
+                                            const juce::Identifier &property) {
+    juce::OSCBundle bundle;
+    const auto& propString{property.toString()};
+    if (propString.contains("module")) {
+        auto val{tree.getProperty(property).toString()};
+        if (val.isNotEmpty()) {
+            DBG("Sending OSC: " << propString << " " << val);
+            bundle.addElement(juce::OSCMessage{propString, val});
+            send(bundle);
+        }
+    }
+}

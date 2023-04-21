@@ -55,6 +55,8 @@ public:
 
     void setStateInformation(const void *data, int sizeInBytes) override;
 
+    const juce::StringArray &getConnectedPeers();
+
 private:
     //==============================================================================
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (AudioPluginAudioProcessor)
@@ -64,8 +66,10 @@ private:
     static juce::AudioProcessorValueTreeState::ParameterLayout createParameterLayout();
 
     std::unique_ptr<NetAudioServer> server;
-//    std::shared_ptr<juce::ValueTree> valueTree;
     std::unique_ptr<WFSMessenger> wfsMessenger;
 
+    // For handling parameters that are known at compile time.
     juce::AudioProcessorValueTreeState apvts;
+    // For handling parameters that are not known until runtime.
+    juce::ValueTree dynamicTree;
 };

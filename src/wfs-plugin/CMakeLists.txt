@@ -12,6 +12,7 @@ juce_add_plugin(njWfsPlugin
 target_compile_definitions(njWfsPlugin
         PRIVATE
         NUM_SOURCES=8
+        NUM_MODULES=8
         DEFAULT_LOCAL_ADDRESS="192.168.10.10"
         DEFAULT_LOCAL_PORT=14841
         DEFAULT_MULTICAST_IP="226.6.38.226"
