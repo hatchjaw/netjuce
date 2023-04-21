@@ -32,6 +32,9 @@ target_sources(njWfsPlugin
         ../NetAudioPeer.cpp
         ../../lib/succulent/ui/XYController/XYController.cpp
         ../../lib/succulent/ui/XYController/XYControllerAttachment.cpp
+        Feels.cpp
+        Utils.cpp
+        ui/Sidebar.cpp
         )
 
 target_compile_definitions(njWfsPlugin

@@ -3,6 +3,8 @@
 #include "PluginProcessor.h"
 #include "../../lib/succulent/ui/XYController/XYController.h"
 #include "../../lib/succulent/ui/XYController/XYControllerAttachment.h"
+#include "Feels.h"
+#include "ui/Sidebar.h"
 
 //==============================================================================
 class AudioPluginAudioProcessorEditor : public juce::AudioProcessorEditor {
@@ -25,6 +27,8 @@ private:
     // access the processor object that created it.
     AudioPluginAudioProcessor &processorRef;
 
+    std::unique_ptr<juce::Feels> feels;
+
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (AudioPluginAudioProcessorEditor)
 
     XYController xyController;
@@ -34,4 +38,6 @@ private:
 
     juce::AudioProcessorValueTreeState &valueTreeState;
     juce::ValueTree &dynamicTree;
+
+    Sidebar sidebar;
 };

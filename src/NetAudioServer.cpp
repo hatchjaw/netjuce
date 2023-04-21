@@ -65,6 +65,7 @@ void NetAudioServer::handleAudioBlock(const juce::AudioSourceChannelInfo &buffer
         fifo.write(bufferToSend.buffer);
 
         // Let the sender thread know there's a packet ready to send.
+        // TODO: check again how JackTrip does this. (Blocking?)
         sendThread.notify();
     } else {
 //        DBG("NetAudioServer is not connected.");

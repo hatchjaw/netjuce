@@ -29,8 +29,6 @@ namespace njwfs {
             return "/module/" + juce::String{index};
         }
 
-//        static const juce::StringRef speakerSpacingParamID;
+        static const juce::StringRef speakerSpacingParamID;
     };
 }
-
-//const juce::StringRef njwfs::Utils::speakerSpacingParamID = "/spacing";

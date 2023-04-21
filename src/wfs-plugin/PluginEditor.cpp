@@ -8,14 +8,14 @@ AudioPluginAudioProcessorEditor::AudioPluginAudioProcessorEditor(AudioPluginAudi
                                                                  juce::ValueTree &vt)
         : AudioProcessorEditor(&p),
           processorRef(p),
+          feels(std::make_unique<juce::Feels>()),
           xyController(NUM_SOURCES),
           valueTreeState(vts),
           dynamicTree(vt) {
 
-    juce::ignoreUnused(processorRef);
+    setLookAndFeel(feels.get());
 
-    getLookAndFeel().setColour(juce::ResizableWindow::backgroundColourId, juce::Colours::ghostwhite);
-    auto fg = getLookAndFeel().findColour(juce::ResizableWindow::backgroundColourId).contrasting(.75);
+    addAndMakeVisible(sidebar);
 
     xyController.onAddNode = [this](XYController::Node &n) {
         auto idx{n.getIndex()};
@@ -34,9 +34,6 @@ AudioPluginAudioProcessorEditor::AudioPluginAudioProcessorEditor(AudioPluginAudi
     for (uint i = 0; i < NUM_MODULES; ++i) {
         auto cb{new juce::ComboBox};
         addAndMakeVisible(cb);
-        cb->setColour(juce::ComboBox::textColourId, fg);
-        cb->setColour(juce::ComboBox::arrowColourId, fg);
-        cb->setColour(juce::ComboBox::backgroundColourId, juce::Colours::whitesmoke);
         cb->onChange = [this, cb, i] {
             auto ip{cb->getText()};
             dynamicTree.setProperty(njwfs::Utils::getModuleParamID(i), ip, nullptr);
@@ -50,6 +47,7 @@ AudioPluginAudioProcessorEditor::AudioPluginAudioProcessorEditor(AudioPluginAudi
 }
 
 AudioPluginAudioProcessorEditor::~AudioPluginAudioProcessorEditor() {
+    setLookAndFeel(nullptr);
 }
 
 //==============================================================================
@@ -68,17 +66,23 @@ void AudioPluginAudioProcessorEditor::paint(juce::Graphics &g) {
 
 void AudioPluginAudioProcessorEditor::resized() {
     auto bounds{getLocalBounds()};
-    auto padding{5}, xyPadX{75}, xyPadY{100};
-    xyController.setBounds(xyPadX, xyPadY / 2, bounds.getWidth() - 2 * xyPadX, bounds.getHeight() - 2 * xyPadY);
+    auto padding{5}, sidebarW{225}, xyPadX{50}, xyPadY{100};
+
+    sidebar.setBounds(0, 0, sidebarW, getHeight());
+
+    xyController.setBounds(sidebar.getRight() + xyPadX,
+                           xyPadY,
+                           bounds.getWidth() - 2 * xyPadX - sidebar.getWidth(),
+                           bounds.getHeight() - 2 * xyPadY);
 
     auto moduleSelectorWidth{
             static_cast<int>(
-                    roundf(static_cast<float>(xyController.getWidth() + 1.5) / static_cast<float>(NUM_MODULES))
+                    roundf(static_cast<float>(xyController.getWidth() + 1) / static_cast<float>(moduleSelectors.size()))
             )
     };
     for (int i{0}; i < moduleSelectors.size(); ++i) {
         moduleSelectors[i]->setBounds(
-                xyPadX + i * moduleSelectorWidth,
+                xyController.getX() + i * moduleSelectorWidth,
                 xyController.getBottom() + padding,
                 moduleSelectorWidth - 1,
                 30

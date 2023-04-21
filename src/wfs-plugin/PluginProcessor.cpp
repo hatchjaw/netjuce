@@ -2,7 +2,11 @@
 #include "PluginEditor.h"
 #include "Utils.h"
 
-//==============================================================================
+/**
+ * TODO: try to make sure there's only ever one instance if this plugin.
+ * Otherwise things'll be messy at best, what with multiple NetAudioServer
+ * instances trying to access the network on the same IP and port.
+ */
 AudioPluginAudioProcessor::AudioPluginAudioProcessor()
         : AudioProcessor(getBusesProperties()),
           server(std::make_unique<NetAudioServer>()),
@@ -10,14 +14,17 @@ AudioPluginAudioProcessor::AudioPluginAudioProcessor()
           apvts(*this, nullptr, "WFS Parameters", createParameterLayout()),
           dynamicTree("Module Parameters") {
 
-    // Add the OSC messenger as a listener to the source positions.
+    // Add the OSC messenger as a listener to the source positions...
     for (uint i{0}; i < NUM_SOURCES; ++i) {
         apvts.addParameterListener(njwfs::Utils::getSourcePositionParamID(i, njwfs::SourcePositionAxis::X),
                                    wfsMessenger.get());
         apvts.addParameterListener(njwfs::Utils::getSourcePositionParamID(i, njwfs::SourcePositionAxis::Y),
                                    wfsMessenger.get());
     }
+    // ...and speaker spacing.
     apvts.addParameterListener("/spacing", wfsMessenger.get());
+    // Also instruct the messenger to listen to the dynamic tree (which handles
+    // module IDs and such.
     dynamicTree.addListener(wfsMessenger.get());
 
     // Notify new peers of source positions.
@@ -30,6 +37,7 @@ AudioPluginAudioProcessor::AudioPluginAudioProcessor()
         }
     };
 
+    // Keep module IDs up to date.
     server->onPeersChanged = [this](juce::StringArray &peerIPs) {
         // Remind the modules of their positions.
         for (int j{0}; j < NUM_MODULES; ++j) {
@@ -212,7 +220,7 @@ juce::AudioProcessorValueTreeState::ParameterLayout AudioPluginAudioProcessor::c
     juce::AudioProcessorValueTreeState::ParameterLayout params;
 
     params.add(std::make_unique<juce::AudioParameterFloat>(
-            "/spacing",
+            njwfs::Utils::speakerSpacingParamID,
             "Speaker Interval (m)",
             juce::NormalisableRange<float>{.05f, .5f, .01f},
             .2f
@@ -237,11 +245,6 @@ juce::AudioProcessorValueTreeState::ParameterLayout AudioPluginAudioProcessor::c
 }
 
 const juce::StringArray &AudioPluginAudioProcessor::getConnectedPeers() {
-//    auto peers = new juce::StringArray;
-//    for (const auto &p: server->getConnectedPeers()) {
-//        peers->add(p);
-//    }
-//    return *peers;
     return server->getConnectedPeers();
 }
 
