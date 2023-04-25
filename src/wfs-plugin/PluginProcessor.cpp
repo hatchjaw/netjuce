@@ -22,12 +22,13 @@ AudioPluginAudioProcessor::AudioPluginAudioProcessor()
                                    wfsMessenger.get());
     }
     // ...and speaker spacing.
-    apvts.addParameterListener("/spacing", wfsMessenger.get());
+    apvts.addParameterListener(njwfs::Utils::speakerSpacingParamID, wfsMessenger.get());
     // Also instruct the messenger to listen to the dynamic tree (which handles
-    // module IDs and such.
+    // module IDs and such).
+//    apvts.state.addListener(wfsMessenger.get());
     dynamicTree.addListener(wfsMessenger.get());
 
-    // Notify new peers of source positions.
+    // Notify new peers of parameters.
     server->onPeerConnected = [this]() {
         for (uint i{0}; i < NUM_SOURCES; ++i) {
             auto idX{njwfs::Utils::getSourcePositionParamID(i, njwfs::SourcePositionAxis::X)},
@@ -35,24 +36,33 @@ AudioPluginAudioProcessor::AudioPluginAudioProcessor()
             wfsMessenger->parameterChanged(idX, apvts.getRawParameterValue(idX)->load());
             wfsMessenger->parameterChanged(idY, apvts.getRawParameterValue(idY)->load());
         }
+        wfsMessenger->parameterChanged(
+                njwfs::Utils::speakerSpacingParamID,
+                apvts.getRawParameterValue(njwfs::Utils::speakerSpacingParamID)->load()
+        );
     };
 
     // Keep module IDs up to date.
     server->onPeersChanged = [this](juce::StringArray &peerIPs) {
         // Remind the modules of their positions.
         for (int j{0}; j < NUM_MODULES; ++j) {
-            auto prop{njwfs::Utils::getModuleParamID(static_cast<uint>(j))};
+            auto prop{njwfs::Utils::getModuleIndexParamID(static_cast<uint>(j))};
             dynamicTree.sendPropertyChangeMessage(prop);
         }
 
         // Update the editor, if there is one.
+        // TODO: This is bad; maybe make the editor a ValueTree::Listener.
         if (auto *editor = dynamic_cast<AudioPluginAudioProcessorEditor *>(getActiveEditor())) {
             editor->updateModuleLists(peerIPs);
         }
+
+        dynamicTree.setProperty(njwfs::Utils::connectedPeersParamID, peerIPs, nullptr);
     };
 }
 
-AudioPluginAudioProcessor::~AudioPluginAudioProcessor() = default;
+AudioPluginAudioProcessor::~AudioPluginAudioProcessor() {
+    dynamicTree.removeListener(wfsMessenger.get());
+}
 
 //==============================================================================
 const juce::String AudioPluginAudioProcessor::getName() const {
@@ -152,8 +162,8 @@ void AudioPluginAudioProcessor::processBlock(juce::AudioBuffer<float> &buffer,
     juce::ignoreUnused(midiMessages);
 
     juce::ScopedNoDenormals noDenormals;
-    auto totalNumInputChannels = getTotalNumInputChannels();
-    auto totalNumOutputChannels = getTotalNumOutputChannels();
+//    auto totalNumInputChannels = getTotalNumInputChannels();
+//    auto totalNumOutputChannels = getTotalNumOutputChannels();
 
     // In case we have more outputs than inputs, this code clears any output
     // channels that didn't contain input data, (because these aren't
@@ -161,11 +171,16 @@ void AudioPluginAudioProcessor::processBlock(juce::AudioBuffer<float> &buffer,
     // This is here to avoid people getting screaming feedback
     // when they first compile a plugin, but obviously you don't need to keep
     // this code if your algorithm always overwrites all the output channels.
-    for (auto i = totalNumInputChannels; i < totalNumOutputChannels; ++i)
-        buffer.clear(i, 0, buffer.getNumSamples());
+//    for (auto i = totalNumInputChannels; i < totalNumOutputChannels; ++i)
+//        buffer.clear(i, 0, buffer.getNumSamples());
+
+    // Apply master gain to the buffer.
+    float gain{apvts.getRawParameterValue(njwfs::Utils::gainParamID)->load()};
+    buffer.applyGainRamp(0, buffer.getNumSamples(), lastGain, gain);
+    lastGain = gain;
 
     juce::AudioSourceChannelInfo block{buffer};
-
+    // Pass the buffer to the networked audio server.
     server->handleAudioBlock(block);
 
     // This is the place where you'd normally do the guts of your plugin's
@@ -174,11 +189,11 @@ void AudioPluginAudioProcessor::processBlock(juce::AudioBuffer<float> &buffer,
     // the samples and the outer loop is handling the channels.
     // Alternatively, you can process the samples with the channels
     // interleaved by keeping the same state.
-    for (int channel = 0; channel < totalNumInputChannels; ++channel) {
-        auto *channelData = buffer.getWritePointer(channel);
-        juce::ignoreUnused(channelData);
-        // ...do something to the data...
-    }
+//    for (int channel = 0; channel < totalNumInputChannels; ++channel) {
+//        auto *channelData = buffer.getWritePointer(channel);
+//        juce::ignoreUnused(channelData);
+//        // ...do something to the data...
+//    }
 }
 
 //==============================================================================
@@ -221,8 +236,8 @@ juce::AudioProcessorValueTreeState::ParameterLayout AudioPluginAudioProcessor::c
 
     params.add(std::make_unique<juce::AudioParameterFloat>(
             njwfs::Utils::speakerSpacingParamID,
-            "Speaker Interval (m)",
-            juce::NormalisableRange<float>{.05f, .5f, .01f},
+            "Speaker Spacing (m)",
+            juce::NormalisableRange<float>{.05f, .5f, .001f},
             .2f
     ));
 
@@ -241,9 +256,17 @@ juce::AudioProcessorValueTreeState::ParameterLayout AudioPluginAudioProcessor::c
         ));
     }
 
+    params.add(std::make_unique<juce::AudioParameterFloat>(
+            njwfs::Utils::gainParamID,
+            "Master Gain",
+            juce::NormalisableRange<float>{0.f, 1.25f, .01f},
+            1.f
+    ));
+
     return params;
 }
 
+// TODO: get rid of this
 const juce::StringArray &AudioPluginAudioProcessor::getConnectedPeers() {
     return server->getConnectedPeers();
 }

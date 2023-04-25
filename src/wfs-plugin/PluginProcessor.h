@@ -72,4 +72,6 @@ private:
     juce::AudioProcessorValueTreeState apvts;
     // For handling parameters that are not known until runtime.
     juce::ValueTree dynamicTree;
+
+    float lastGain{1.f};
 };

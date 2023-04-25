@@ -8,14 +8,13 @@ AudioPluginAudioProcessorEditor::AudioPluginAudioProcessorEditor(AudioPluginAudi
                                                                  juce::ValueTree &vt)
         : AudioProcessorEditor(&p),
           processorRef(p),
-          feels(std::make_unique<juce::Feels>()),
-          xyController(NUM_SOURCES),
           valueTreeState(vts),
-          dynamicTree(vt) {
+          dynamicTree(vt),
+          feels(std::make_unique<Feels>()),
+          xyController(NUM_SOURCES),
+          settingsComponent(std::make_unique<SettingsComponent>(vts)) {
 
     setLookAndFeel(feels.get());
-
-    addAndMakeVisible(sidebar);
 
     xyController.onAddNode = [this](XYController::Node &n) {
         auto idx{n.getIndex()};
@@ -34,19 +33,60 @@ AudioPluginAudioProcessorEditor::AudioPluginAudioProcessorEditor(AudioPluginAudi
     for (uint i = 0; i < NUM_MODULES; ++i) {
         auto cb{new juce::ComboBox};
         addAndMakeVisible(cb);
+        // Need to use this callback because module IDs are handled by the
+        // valueTree -- it doesn't make sense to represent them as automatable
+        // parameters via the APVTS.
         cb->onChange = [this, cb, i] {
             auto ip{cb->getText()};
-            dynamicTree.setProperty(njwfs::Utils::getModuleParamID(i), ip, nullptr);
+            dynamicTree.setProperty(njwfs::Utils::getModuleIndexParamID(i), ip, nullptr);
         };
         moduleSelectors.add(cb);
     }
 
-    updateModuleLists(processorRef.getConnectedPeers());
+    //==========================================================================
+    addAndMakeVisible(gainSlider);
+    gainSlider.setSliderStyle(juce::Slider::SliderStyle::LinearHorizontal);
+    gainSlider.setNormalisableRange({0., 1.25, .01});
+    gainSlider.setValue(1.);
+    gainSlider.setTextBoxStyle(juce::Slider::TextBoxRight,
+                               false,
+                               gainSlider.getTextBoxWidth() * .75f,
+                               gainSlider.getTextBoxHeight());
+
+    addAndMakeVisible(gainLabel);
+    gainLabel.attachToComponent(&gainSlider, true);
+    gainLabel.setText("Gain", juce::dontSendNotification);
+
+    gainAttachment = std::make_unique<SliderAttachment>(
+            valueTreeState,
+            njwfs::Utils::gainParamID,
+            gainSlider
+    );
+
+    //==========================================================================
+    addAndMakeVisible(settingsButton);
+    settingsButton.setButtonText("Settings");
+    settingsButton.onClick = [this] { showSettings(); };
+
+//    updateModuleLists(processorRef.getConnectedPeers());
+    auto rawPeers{dynamicTree.getProperty(njwfs::Utils::connectedPeersParamID)};
+    if (rawPeers.isArray()) {
+        juce::StringArray peers;
+        for (const auto &rp: *rawPeers.getArray()) {
+            peers.add(rp);
+        }
+        updateModuleLists(peers);
+    }
+
+    dynamicTree.addListener(settingsComponent.get());
+    dynamicTree.sendPropertyChangeMessage(njwfs::Utils::connectedPeersParamID);
 
     setSize(1200, 900);
 }
 
 AudioPluginAudioProcessorEditor::~AudioPluginAudioProcessorEditor() {
+    settingsWindow.deleteAndZero();
+    dynamicTree.removeListener(settingsComponent.get());
     setLookAndFeel(nullptr);
 }
 
@@ -66,18 +106,16 @@ void AudioPluginAudioProcessorEditor::paint(juce::Graphics &g) {
 
 void AudioPluginAudioProcessorEditor::resized() {
     auto bounds{getLocalBounds()};
-    auto padding{5}, sidebarW{225}, xyPadX{50}, xyPadY{100};
+    auto padding{5}, xyPadX{50}, xyPadY{100};
 
-    sidebar.setBounds(0, 0, sidebarW, getHeight());
-
-    xyController.setBounds(sidebar.getRight() + xyPadX,
+    xyController.setBounds(xyPadX,
                            xyPadY,
-                           bounds.getWidth() - 2 * xyPadX - sidebar.getWidth(),
+                           bounds.getWidth() - 2 * xyPadX,
                            bounds.getHeight() - 2 * xyPadY);
 
     auto moduleSelectorWidth{
             static_cast<int>(
-                    roundf(static_cast<float>(xyController.getWidth() + 1) / static_cast<float>(moduleSelectors.size()))
+                    roundf(static_cast<float>(xyController.getWidth()) / static_cast<float>(moduleSelectors.size()))
             )
     };
     for (int i{0}; i < moduleSelectors.size(); ++i) {
@@ -88,12 +126,19 @@ void AudioPluginAudioProcessorEditor::resized() {
                 30
         );
     }
+
+    gainSlider.setBounds(xyController.getX() + 35, xyController.getY() - 25 - padding, 250, 25);
+
+    settingsButton.setBounds(xyController.getRight() - njwfs::Utils::settingsButtonW,
+                             xyController.getY() - njwfs::Utils::settingsButtonH - padding,
+                             njwfs::Utils::settingsButtonW,
+                             njwfs::Utils::settingsButtonH);
 }
 
 void AudioPluginAudioProcessorEditor::updateModuleLists(const juce::StringArray &peerIPs) {
     // Update the module selector lists.
     for (int j{0}; j < moduleSelectors.size(); ++j) {
-        auto prop{njwfs::Utils::getModuleParamID(static_cast<uint>(j))};
+        auto prop{njwfs::Utils::getModuleIndexParamID(static_cast<uint>(j))};
         // Store the current property value.
         auto selected{dynamicTree.getProperty(prop).toString()};
         // Refresh the list.
@@ -106,4 +151,25 @@ void AudioPluginAudioProcessorEditor::updateModuleLists(const juce::StringArray 
             }
         }
     }
+}
+
+void AudioPluginAudioProcessorEditor::showSettings() {
+    juce::DialogWindow::LaunchOptions options;
+
+//    options.content.setOwned(new SettingsComponent(valueTreeState));
+    options.content.setNonOwned(settingsComponent.get());
+
+    options.content->setSize(600, 450);
+
+    options.dialogTitle = "Settings";
+    options.dialogBackgroundColour = getLookAndFeel().findColour(juce::ResizableWindow::backgroundColourId);
+    options.escapeKeyTriggersCloseButton = true;
+    options.useNativeTitleBar = true;
+    options.resizable = false;
+
+//    settingsWindow.deleteAndZero();
+    settingsWindow = options.launchAsync();
+
+    if (settingsWindow != nullptr)
+        settingsWindow->centreWithSize(600, 450);
 }

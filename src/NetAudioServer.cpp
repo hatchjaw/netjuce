@@ -25,6 +25,7 @@ NetAudioServer::NetAudioServer(int numChannelsToSend, const juce::String &multic
                 onPeersChanged(getConnectedPeers());
         });
     };
+
     receiveThread.onPeerDisconnected = [this]() {
         juce::MessageManager::callAsync([this]() {
             if (onPeerDisconnected != nullptr)
@@ -65,8 +66,7 @@ void NetAudioServer::handleAudioBlock(const juce::AudioSourceChannelInfo &buffer
         fifo.write(bufferToSend.buffer);
 
         // Let the sender thread know there's a packet ready to send.
-        // TODO: check again how JackTrip does this. (Blocking?)
-        sendThread.notify();
+//        sendThread.notify();
     } else {
 //        DBG("NetAudioServer is not connected.");
 //        connectorThread.startThread();
@@ -74,6 +74,7 @@ void NetAudioServer::handleAudioBlock(const juce::AudioSourceChannelInfo &buffer
 }
 
 void NetAudioServer::releaseResources() {
+    fifo.notify();
     if (sendThread.isThreadRunning()) {
         sendThread.stopThread(1000);
     }
@@ -103,9 +104,9 @@ NetAudioServer::Sender::Sender(MulticastSocket::Params &socketParams,
 void NetAudioServer::Sender::run() {
     while (!threadShouldExit()) {
         // Wait for notification from the audio thread.
-        if (!wait(100)) {
-            DBG("Sender thread wait timed out.\n");
-        }
+//        if (!wait(100)) {
+//            DBG("Sender thread wait timed out.\n");
+//        }
 
         // Read from the fifo into the packet.
         fifo.read(packet.getAudioData(), audioBlockSamples);
@@ -160,6 +161,7 @@ void NetAudioServer::Receiver::prepareToReceive(int numChannelsToReceive, int sa
 }
 
 void NetAudioServer::Receiver::run() {
+    // Set up an epoll instance to listen for incoming packets.
     const int maxEvents{10};
     int epollfd = epoll_create1(0);
     if (-1 == epollfd) {
@@ -224,7 +226,7 @@ void NetAudioServer::Receiver::run() {
 }
 
 void NetAudioServer::Receiver::timerCallback() {
-    // Check client connectivity.
+    // Check peer connectivity.
     for (auto it = peers.cbegin(), next = it; it != peers.cend(); it = next) {
         ++next;
         if (!it->second->isConnected()) {

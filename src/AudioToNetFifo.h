@@ -55,7 +55,7 @@ using ConverterF32I16 = juce::AudioData::ConverterInstance<
                 //00a0   7f fe 7f fd 7f fe 7f fe 7f fe
                 //
                 // Where up to 0029 is header (obviously no 16 byte jacktrip
-                // header here -- [NB, this was before introduction of a NetJUCE header])
+                // header here -- [NB, this was before introduction of a header])
                 // As can be seen, each 16-bit (2-byte) word is reversed in the
                 // Big endian version.
                 //
@@ -102,11 +102,18 @@ public:
 
     /**
      * Read 32-bit float samples from the fifo, convert them to 16-bit int and
-     * write them into dest.
+     * write them into dest. Blocks until notified that a write has occurred,
+     * i.e. that a packet's worth of samples are available.
      * @param dest The destination buffer to read into.
      * @param numSamples The number of samples to read for each channel of the fifo.
      */
     int read(uint8_t *dest, int numSamples);
+
+    /**
+     * Trigger the isReady signal; prevents read() waiting forever and
+     * preventing anything that's waiting for it to finish from shutting down.
+     */
+    void notify();
 
 private:
     const int kBytesPerSample{sizeof(int16_t)};
@@ -115,6 +122,7 @@ private:
     std::unique_ptr<ConverterF32I16> converter;
     juce::CriticalSection mutex;
     int start1{0}, size1{0}, start2{0}, size2{0};
+    juce::WaitableEvent fullBufferAvailable;
 };
 
 

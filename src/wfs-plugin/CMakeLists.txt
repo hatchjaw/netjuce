@@ -16,8 +16,8 @@ target_compile_definitions(njWfsPlugin
         DEFAULT_LOCAL_ADDRESS="192.168.10.10"
         DEFAULT_LOCAL_PORT=14841
         DEFAULT_MULTICAST_IP="226.6.38.226"
-        DEFAULT_OSC_MULTICAST_IP="226.6.38.227"
-        DEFAULT_REMOTE_PORT=41814
+        DEFAULT_AUDIO_SEND_PORT=41814
+        DEFAULT_OSC_SEND_PORT=41815
         )
 
 target_sources(njWfsPlugin
@@ -26,6 +26,7 @@ target_sources(njWfsPlugin
         PluginProcessor.cpp
         WFSMessenger.cpp
         ../NetAudioServer.cpp
+        ../NetAudioCohort.cpp
         ../AudioToNetFifo.cpp
         ../DatagramAudioPacket.cpp
         ../MulticastSocket.cpp
@@ -34,7 +35,7 @@ target_sources(njWfsPlugin
         ../../lib/succulent/ui/XYController/XYControllerAttachment.cpp
         Feels.cpp
         Utils.cpp
-        ui/Sidebar.cpp
+        ui/SettingsComponent.cpp
         )
 
 target_compile_definitions(njWfsPlugin
@@ -50,6 +51,7 @@ target_link_libraries(njWfsPlugin
         juce::juce_audio_utils
         juce::juce_data_structures
         juce::juce_osc
+        juce::juce_gui_basics
         PUBLIC
         juce::juce_recommended_config_flags
         juce::juce_recommended_lto_flags

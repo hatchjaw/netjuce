@@ -5,3 +5,7 @@
 #include "Utils.h"
 
 const juce::StringRef njwfs::Utils::speakerSpacingParamID = "/spacing";
+
+const juce::StringRef njwfs::Utils::gainParamID = "GAIN";
+
+const juce::Identifier njwfs::Utils::connectedPeersParamID = "CONNECTED_PEERS";

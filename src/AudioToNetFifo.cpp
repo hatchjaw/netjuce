@@ -38,9 +38,13 @@ void AudioToNetFifo::write(juce::AudioBuffer<float> *const src) {
         buffer->copyFrom(ch, writeHandle.startIndex1, readPointer, writeHandle.blockSize1);
         buffer->copyFrom(ch, writeHandle.startIndex2, readPointer, writeHandle.blockSize2);
     }
+
+    fullBufferAvailable.signal();
 }
 
 int AudioToNetFifo::read(uint8_t *dest, int numSamples) {
+    fullBufferAvailable.wait();
+
     const juce::ScopedLock lock{mutex};
 
 //    auto readHandle{fifo.read(numSamples)};
@@ -74,4 +78,9 @@ int AudioToNetFifo::read(uint8_t *dest, int numSamples) {
     fifo.finishedRead(totalSize);
 
     return numSamples;
+}
+
+void AudioToNetFifo::notify() {
+    const juce::ScopedLock lock{mutex};
+    fullBufferAvailable.signal();
 }
