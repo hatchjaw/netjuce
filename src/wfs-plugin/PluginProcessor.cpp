@@ -237,7 +237,7 @@ juce::AudioProcessorValueTreeState::ParameterLayout AudioPluginAudioProcessor::c
     params.add(std::make_unique<juce::AudioParameterFloat>(
             njwfs::Utils::speakerSpacingParamID,
             "Speaker Spacing (m)",
-            juce::NormalisableRange<float>{.05f, .5f, .001f},
+            juce::NormalisableRange<float>{.05f, .4f, .001f},
             .2f
     ));
 

@@ -9,7 +9,9 @@ void DatagramAudioPacket::prepare(int numChannels, int bufferSize, double sample
     setSize(PACKET_HEADER_SIZE + static_cast<size_t>(numChannels) * bytesPerChannel);
 
     header.BitResolution = BIT16;
-    header.BufferSize = bufferSize;
+//    header.BufferSize = bufferSize;
+    header.BufferSize = __builtin_ctz(static_cast<unsigned int>(bufferSize));
+//    DBG("Buffer size: 2^" << header.BufferSize << " = " << (1 << header.BufferSize));
     header.NumChannels = numChannels;
     header.SeqNumber = 0;
     switch (static_cast<int>(sampleRate)) {
@@ -65,7 +67,8 @@ int DatagramAudioPacket::getNumAudioChannels() const {
 }
 
 int DatagramAudioPacket::getNumSamples() const {
-    return header.BufferSize;
+//    return header.BufferSize;
+    return 1 << header.BufferSize;
 }
 
 void DatagramAudioPacket::parseHeader() {

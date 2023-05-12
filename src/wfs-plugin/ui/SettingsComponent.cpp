@@ -28,7 +28,7 @@ SettingsComponent::SettingsComponent(juce::AudioProcessorValueTreeState &apvts) 
     //==========================================================================
     addAndMakeVisible(speakerSpacingSlider);
     speakerSpacingSlider.setSliderStyle(juce::Slider::SliderStyle::IncDecButtons);
-    speakerSpacingSlider.setNormalisableRange({.05, .5, .001});
+    speakerSpacingSlider.setNormalisableRange({.05, .4, .001});
     speakerSpacingSlider.setValue(.2f);
     speakerSpacingSlider.setTextBoxStyle(juce::Slider::TextBoxLeft,
                                          false,
