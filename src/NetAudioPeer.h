@@ -30,7 +30,7 @@ public:
 
     void handlePacket(DatagramAudioPacket &p);
 
-    void getNextAudioBlock(juce::AudioBuffer<float> bufferToFill, int numSamples);
+    void getNextAudioBlock(juce::AudioBuffer<float> &bufferToFill, int channelToWriteTo, int numSamples);
 
     bool isConnected() const;
 

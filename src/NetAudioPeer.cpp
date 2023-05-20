@@ -22,11 +22,31 @@ void NetAudioPeer::handlePacket(DatagramAudioPacket &p) {
     }
 }
 
-void NetAudioPeer::getNextAudioBlock(juce::AudioBuffer<float> bufferToFill, int numSamples) {
-    for (int ch = 0; ch < audioBuffer->getNumChannels() && ch < bufferToFill.getNumChannels(); ++ch) {
+void NetAudioPeer::getNextAudioBlock(juce::AudioBuffer<float> &bufferToFill, int channelToWriteTo, int numSamples) {
+//    for (int ch = 0; ch < audioBuffer->getNumChannels() && ch < bufferToFill.getNumChannels(); ++ch) {
+//        auto r{audioBuffer->getReadPointer(ch)};
+//        bufferToFill.copyFrom(ch, 0, r, numSamples);
+//    }
+
+    // Sync test. Copy first two return channels to appropriate channels in the buffer.
+    for (int ch = 0; ch < 2 && channelToWriteTo + ch < bufferToFill.getNumChannels(); ++ch) {
         auto r{audioBuffer->getReadPointer(ch)};
-        bufferToFill.copyFrom(ch, 0, r, numSamples);
+        bufferToFill.copyFrom(channelToWriteTo + ch, 0, r, numSamples);
     }
+
+//    // Or calculate the difference directly, rather than having to do it later
+//    // in MATLAB/Python.
+//    // Doesn't work, because this overwrites the first channel when handling
+//    // the first peer.
+//    for (int s{0}; s < numSamples; ++s) {
+//        auto outgoingSample{bufferToFill.getSample(0, s)},
+//                incomingSample{audioBuffer->getSample(0, s)},
+//                diff = (incomingSample >= outgoingSample ? outgoingSample + 1.f : outgoingSample) - incomingSample;
+//        bufferToFill.setSample(channelToWriteTo, s, diff);
+//    }
+//
+//    auto r{audioBuffer->getReadPointer(1)};
+//    bufferToFill.copyFrom(channelToWriteTo + 1, 0, r, numSamples);
 }
 
 bool NetAudioPeer::isConnected() const {

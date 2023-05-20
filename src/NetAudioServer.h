@@ -96,7 +96,7 @@ private:
     Receiver receiveThread;
 
     MulticastSocket::Params socketParams;
-    int numChannels;
+    int numChannels, samplesPerBlock;
     AudioToNetFifo fifo;
     std::unordered_map<juce::String, std::unique_ptr<NetAudioPeer>> peers;
 

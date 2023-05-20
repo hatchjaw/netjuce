@@ -228,6 +228,10 @@ juce::AudioProcessor::BusesProperties AudioPluginAudioProcessor::getBusesPropert
 
     buses.addBus(true, "Input", juce::AudioChannelSet::octagonal());
 
+    for (int i{0}; i < NUM_SOURCES; ++i) {
+        buses.addBus(false, "Output #" + juce::String{i + 1}, juce::AudioChannelSet::stereo());
+    }
+
     return buses;
 }
 

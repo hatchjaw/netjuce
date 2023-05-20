@@ -9,7 +9,7 @@ target_compile_definitions(NetJUCE
         NUM_SOURCES=2
         DEFAULT_LOCAL_ADDRESS="192.168.10.10"
         DEFAULT_LOCAL_PORT=14841
-        DEFAULT_MULTICAST_IP="226.6.38.226"
+        DEFAULT_MULTICAST_IP="224.4.224.4"
         DEFAULT_AUDIO_SEND_PORT=41814
         )
 

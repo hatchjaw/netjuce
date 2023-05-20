@@ -53,6 +53,7 @@ void NetAudioServer::disconnect() {
 }
 
 void NetAudioServer::prepareToSend(int samplesPerBlockExpected, double sampleRate) {
+    samplesPerBlock = samplesPerBlockExpected;
     fifo.setSize(samplesPerBlockExpected, 8);
 
     sendThread.prepareToSend(numChannels, samplesPerBlockExpected, sampleRate);
@@ -65,8 +66,12 @@ void NetAudioServer::handleAudioBlock(const juce::AudioSourceChannelInfo &buffer
     if (sendThread.connected.get()) {
         fifo.write(bufferToSend.buffer);
 
-        // Let the sender thread know there's a packet ready to send.
-//        sendThread.notify();
+        // Replace buffer contents with return streams from peers.
+        auto ch{0};
+        for (auto &peer: peers) {
+            peer.second->getNextAudioBlock(*bufferToSend.buffer, ch, samplesPerBlock);
+            ch += 2;
+        }
     } else {
 //        DBG("NetAudioServer is not connected.");
 //        connectorThread.startThread();
