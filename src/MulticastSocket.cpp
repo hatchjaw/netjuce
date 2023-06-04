@@ -21,7 +21,7 @@ bool MulticastSocket::connect() {
             bound = socket->bindToPort(params.LocalPort);
             break;
         case WRITE:
-            bound = socket->bindToPort(params.LocalPort, params.LocalIP.toString());
+            bound = socket->bindToPort(params.LocalPort - 1, params.LocalIP.toString());
             break;
         default:
             jassertfalse;

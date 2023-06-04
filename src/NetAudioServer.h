@@ -8,7 +8,12 @@
 #include <juce_core/juce_core.h>
 #include <juce_events/juce_events.h>
 #include <juce_data_structures/juce_data_structures.h>
+#if JUCE_LINUX
 #include <sys/epoll.h>
+#elif JUCE_MAC
+#include <unistd.h>
+#include <sys/event.h>
+#endif
 #include "Constants.h"
 #include "Utils.h"
 #include "AudioToNetFifo.h"

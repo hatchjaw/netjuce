@@ -26,7 +26,7 @@ target_sources(njWfsPlugin
         PluginProcessor.cpp
         WFSMessenger.cpp
         ../NetAudioServer.cpp
-        ../NetAudioCohort.cpp
+#        ../NetAudioCohort.cpp
         ../AudioToNetFifo.cpp
         ../DatagramAudioPacket.cpp
         ../MulticastSocket.cpp
@@ -59,8 +59,8 @@ target_link_libraries(njWfsPlugin
 
 if (CMAKE_BUILD_TYPE STREQUAL "Debug" AND CMAKE_SYSTEM_NAME STREQUAL "Darwin")
     # Sign targets to allow debugging without elevated privileges
-    add_custom_command(TARGET NetJUCE
+    add_custom_command(TARGET njWfsPlugin
             POST_BUILD
             COMMAND /bin/sh ${PROJECT_SOURCE_DIR}/lib/succulent/scripts/add_debug_entitlement.sh
-            ${PROJECT_BINARY_DIR}/njWfsPlugin_artefacts/${CMAKE_BUILD_TYPE}/...)
+            ${PROJECT_BINARY_DIR}/src/wfs-plugin/njWfsPlugin_artefacts/${CMAKE_BUILD_TYPE}/AU/njWFS.component)
 endif ()

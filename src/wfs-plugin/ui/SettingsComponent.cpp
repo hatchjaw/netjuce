@@ -101,7 +101,7 @@ void SettingsComponent::valueTreePropertyChanged(juce::ValueTree &treeWhosePrope
             c << "Connected Peers:" << juce::newLine << juce::newLine;
 
             for (const auto& p: *peers.getArray()) {
-                c << juce::String{p} << juce::newLine;
+                c << p.toString() << juce::newLine;
             }
         }
 

@@ -166,24 +166,38 @@ void NetAudioServer::Receiver::prepareToReceive(int numChannelsToReceive, int sa
 }
 
 void NetAudioServer::Receiver::run() {
-    // Set up an epoll instance to listen for incoming packets.
+    auto handle{socket->getRawHandle()};
     const int maxEvents{10};
+#if JUCE_LINUX
+    // Set up an epoll instance to listen for incoming packets.
     int epollfd = epoll_create1(0);
     if (-1 == epollfd) {
         std::cerr << "Receive thread: `epoll_create` failed to set up polling.";
     }
 //    struct epoll_event change, event;
     struct epoll_event change, events[maxEvents];
-    auto handle{socket->getRawHandle()};
     change.events = EPOLLIN;
     change.data.fd = handle;
     if (0 != epoll_ctl(epollfd, EPOLL_CTL_ADD, handle, &change)) {
         std::cerr << "Receive thread: `epoll_ctl` failed to set up polling.";
     }
+#elif JUCE_MAC
+    int kq = kqueue();
+    struct kevent change;
+    struct kevent event;
+    EV_SET(&change, handle, EVFILT_READ, EV_ADD, 0, 0, NULL);
+    struct timespec timeout;
+    timeout.tv_sec = 0;
+    timeout.tv_nsec = 10000000;
+#endif
 
     while (!threadShouldExit()) {
-//        int numEvents = epoll_wait(epollfd, &event, 1, -1); // If using a single event.
-        int numEvents = epoll_wait(epollfd, events, maxEvents, 100);
+#if JUCE_LINUX
+        //        int numEvents = epoll_wait(epollfd, &event, 1, -1); // If using a single event.
+                int numEvents = epoll_wait(epollfd, events, maxEvents, 100);
+#elif JUCE_MAC
+        int numEvents = kevent(kq, &change, 1, &event, maxEvents, &timeout);
+#endif
         if (numEvents > 0) {
             if (numEvents > 1) {
                 DBG("After epoll_wait: found " << numEvents << " events.");
@@ -226,7 +240,11 @@ void NetAudioServer::Receiver::run() {
         }
     }
 
+#if JUCE_LINUX
     close(epollfd);
+#elif JUCE_MAC
+    close(kq);
+#endif
     DBG("Stopping receive thread");
 }
 
