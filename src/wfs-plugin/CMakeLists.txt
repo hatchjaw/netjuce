@@ -4,11 +4,14 @@ juce_add_plugin(njWfsPlugin
         NEEDS_MIDI_INPUT FALSE
         COPY_PLUGIN_AFTER_BUILD TRUE
         PLUGIN_MANUFACTURER_CODE TarQ
-        PLUGIN_CODE Tr13
+        PLUGIN_CODE Tr14
         FORMATS AU VST3 Standalone
         VST3_CATEGORIES "Network"
         PRODUCT_NAME "njWFS")
 
+# TODO: Follow IANA standards for port numbers
+# https://www.iana.org/assignments/service-names-port-numbers/service-names-port-numbers.xhtml
+# Local port should be ephemeral (49152-65535)
 target_compile_definitions(njWfsPlugin
         PRIVATE
         NUM_SOURCES=8
@@ -16,8 +19,8 @@ target_compile_definitions(njWfsPlugin
         DEFAULT_LOCAL_ADDRESS="192.168.10.10"
         DEFAULT_LOCAL_PORT=14841
         DEFAULT_MULTICAST_IP="224.4.224.4"
-        DEFAULT_AUDIO_SEND_PORT=41814
-        DEFAULT_OSC_SEND_PORT=41815
+        DEFAULT_AUDIO_SEND_PORT=6664
+        DEFAULT_OSC_SEND_PORT=6663
         )
 
 target_sources(njWfsPlugin

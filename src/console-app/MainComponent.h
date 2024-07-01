@@ -26,7 +26,7 @@ private:
     std::unique_ptr<MultiChannelAudioSource> multiChannelSource;
     std::unique_ptr<NetAudioServer> netServer;
     juce::StringArray audioFiles;
-    bool ready{false};
+    bool ready{false}, prepared{false};
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (MainComponent)
 };

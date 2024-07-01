@@ -37,7 +37,7 @@ public:
 
     void disconnect();
 
-    void prepareToSend(int samplesPerBlockExpected, double sampleRate);
+    void prepare(int samplesPerBlockExpected, double sampleRate);
 
     void handleAudioBlock(const juce::AudioSourceChannelInfo &bufferToSend);
 
@@ -108,6 +108,7 @@ private:
     juce::CriticalSection lock;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(NetAudioServer)
+    bool firstSend{true};
 };
 
 

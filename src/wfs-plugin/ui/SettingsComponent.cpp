@@ -98,7 +98,7 @@ void SettingsComponent::valueTreePropertyChanged(juce::ValueTree &treeWhosePrope
         if (!peers.isArray() || peers.getArray()->isEmpty()) {
             c << "No peers connected.";
         } else {
-            c << "Connected Peers:" << juce::newLine << juce::newLine;
+            c << "Connected Peers (" << peers.size() << "):" << juce::newLine << juce::newLine;
 
             for (const auto& p: *peers.getArray()) {
                 c << p.toString() << juce::newLine;

@@ -26,7 +26,7 @@ using ConverterI16F32 = juce::AudioData::ConverterInstance<
 
 class NetAudioPeer {
 public:
-    explicit NetAudioPeer(DatagramAudioPacket firstPacket, int bufferRedundancy = 1);
+    explicit NetAudioPeer(DatagramAudioPacket firstPacket, int bufferRedundancy = 2);
 
     void handlePacket(DatagramAudioPacket &p);
 
@@ -40,6 +40,8 @@ private:
     DatagramAudioPacket::Origin origin;
     uint32_t lastReceiveTime;
     std::unique_ptr<juce::AudioBuffer<float>> audioBuffer;
+    std::unique_ptr<juce::AudioBuffer<float>> tempBuffer;
+    juce::AbstractFifo fifo;
     ConverterI16F32 converter;
 };
 

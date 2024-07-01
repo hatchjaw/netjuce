@@ -98,7 +98,7 @@ public:
      * Write 32-bit float samples into the fifo.
      * @param buffer
      */
-    void write(juce::AudioBuffer<float> *buffer);
+    void write(juce::AudioBuffer<float> *buffer, bool signal);
 
     /**
      * Read 32-bit float samples from the fifo, convert them to 16-bit int and

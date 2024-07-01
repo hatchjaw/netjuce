@@ -121,7 +121,7 @@ void AudioPluginAudioProcessor::changeProgramName(int index, const juce::String 
 
 //==============================================================================
 void AudioPluginAudioProcessor::prepareToPlay(double sampleRate, int samplesPerBlock) {
-    server->prepareToSend(samplesPerBlock, sampleRate);
+    server->prepare(samplesPerBlock, sampleRate);
     wfsMessenger->connect();
 }
 
@@ -222,11 +222,11 @@ void AudioPluginAudioProcessor::setStateInformation(const void *data, int sizeIn
 juce::AudioProcessor::BusesProperties AudioPluginAudioProcessor::getBusesProperties() {
     BusesProperties buses;
 
-//    for (int i{0}; i < NUM_SOURCES; ++i) {
-//        buses.addBus(true, "Input #" + juce::String{i + 1}, juce::AudioChannelSet::mono());
-//    }
+    for (int i{0}; i < NUM_SOURCES; ++i) {
+        buses.addBus(true, "Input #" + juce::String{i + 1}, juce::AudioChannelSet::mono());
+    }
 
-    buses.addBus(true, "Input", juce::AudioChannelSet::octagonal());
+//    buses.addBus(true, "Input", juce::AudioChannelSet::octagonal());
 
     for (int i{0}; i < NUM_SOURCES; ++i) {
         buses.addBus(false, "Output #" + juce::String{i + 1}, juce::AudioChannelSet::stereo());

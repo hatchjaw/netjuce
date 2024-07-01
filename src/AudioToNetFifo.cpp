@@ -11,7 +11,8 @@ AudioToNetFifo::AudioToNetFifo(uint8_t numChannels) :
 
 AudioToNetFifo::~AudioToNetFifo() = default;
 
-void AudioToNetFifo::setSize(int numSamples, int redundancy) {
+void AudioToNetFifo::setSize(int numSamples, int redundancy)
+{
     const juce::ScopedLock lock{mutex};
 
     auto capacity{numSamples * redundancy};
@@ -19,19 +20,28 @@ void AudioToNetFifo::setSize(int numSamples, int redundancy) {
     buffer->setSize(buffer->getNumChannels(), capacity);
 }
 
-void AudioToNetFifo::write(juce::AudioBuffer<float> *const src) {
-    const juce::ScopedLock lock{mutex};
+void AudioToNetFifo::write(juce::AudioBuffer<float> *src, bool signal)
+{
+//    const juce::ScopedLock lock{mutex};
 
     auto writeHandle{fifo.write(src->getNumSamples())};
 
     if (writeHandle.blockSize1 + writeHandle.blockSize2 != src->getNumSamples()) {
-        DBG("WRITE UNDERRUN " << writeHandle.startIndex1 << " " <<
-                              writeHandle.blockSize1 << " " <<
-                              writeHandle.startIndex2 << " " <<
-                              writeHandle.blockSize2 << "\n");
+        DBG("WRITE UNDERRUN want to write " << src->getNumSamples() <<
+                                            " samples, tried to write " << writeHandle.blockSize1 + writeHandle.blockSize2 <<
+                                            " samples. FIFO size " << fifo.getTotalSize() <<
+                                            " num ready " << fifo.getNumReady() <<
+                                            " free space " << fifo.getFreeSpace() <<
+                                            " start1 " << writeHandle.startIndex1 <<
+                                            " len1 " << writeHandle.blockSize1 <<
+                                            " start2 " << writeHandle.startIndex2 <<
+                                            " len2 " << writeHandle.blockSize2 << "\n");
         fifo.reset();
+        return;
     }
 
+    // TODO: check number of channels.
+    // Assigning to the plugin with fewer than NUM_SOURCES channels is a problem.
 //    for (int ch = 0; ch < src->getNumChannels(); ++ch) {
     for (int ch = 0; ch < buffer->getNumChannels(); ++ch) {
         auto readPointer = src->getReadPointer(ch);
@@ -39,25 +49,40 @@ void AudioToNetFifo::write(juce::AudioBuffer<float> *const src) {
         buffer->copyFrom(ch, writeHandle.startIndex2, readPointer, writeHandle.blockSize2);
     }
 
-    fullBufferAvailable.signal();
+    if (signal) {
+        fullBufferAvailable.signal();
+    }
 }
 
-int AudioToNetFifo::read(uint8_t *dest, int numSamples) {
+int AudioToNetFifo::read(uint8_t *dest, int numSamples)
+{
+    const juce::ScopedLock lock{mutex};
+
     fullBufferAvailable.wait();
 
-    const juce::ScopedLock lock{mutex};
+    do {
+        fifo.prepareToRead(numSamples, start1, size1, start2, size2);
+        if (size1 + size2 != numSamples) {
+            DBG("Not enough samples ready to read (" << size1 + size2 << "); trying again.");
+        }
+    } while (size1 + size2 < numSamples);
 
 //    auto readHandle{fifo.read(numSamples)};
 
-    fifo.prepareToRead(numSamples, start1, size1, start2, size2);
+//    fifo.prepareToRead(numSamples, start1, size1, start2, size2);
 
     auto totalSize{size1 + size2};
 
     if (totalSize != numSamples) {
-        DBG("READ UNDERRUN " << start1 << " " <<
-                             size1 << " " <<
-                             start2 << " " <<
-                             size2 << "\n");
+        DBG("READ UNDERRUN want " << numSamples <<
+                                  " samples got " << totalSize <<
+                                  ". FIFO size " << fifo.getTotalSize() <<
+                                  " num ready " << fifo.getNumReady() <<
+                                  " free space " << fifo.getFreeSpace() <<
+                                  " start1 " << start1 <<
+                                  " len1 " << size1 <<
+                                  " start2 " << start2 <<
+                                  " len2 " << size2 << "\n");
         fifo.reset();
         return totalSize;
     }
@@ -80,7 +105,8 @@ int AudioToNetFifo::read(uint8_t *dest, int numSamples) {
     return numSamples;
 }
 
-void AudioToNetFifo::notify() {
-    const juce::ScopedLock lock{mutex};
+void AudioToNetFifo::notify()
+{
+//    const juce::ScopedLock lock{mutex};
     fullBufferAvailable.signal();
 }

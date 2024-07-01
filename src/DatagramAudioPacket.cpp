@@ -66,7 +66,7 @@ int DatagramAudioPacket::getNumAudioChannels() const {
     return header.NumChannels;
 }
 
-int DatagramAudioPacket::getNumSamples() const {
+int DatagramAudioPacket::getNumFrames() const {
 //    return header.BufferSize;
     return 1 << header.BufferSize;
 }

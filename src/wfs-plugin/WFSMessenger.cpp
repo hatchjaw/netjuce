@@ -23,7 +23,7 @@ void WFSMessenger::parameterChanged(const juce::String &parameterID, float newVa
 //    DBG("In apvts::Listener parameterChanged");
 
     juce::OSCBundle bundle;
-//    DBG("Sending OSC: " << parameterID << " " << newValue);
+    DBG("Sending OSC: " << parameterID << " " << newValue);
     bundle.addElement(juce::OSCMessage{parameterID, newValue});
     send(bundle);
 }

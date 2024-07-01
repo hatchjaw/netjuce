@@ -15,33 +15,40 @@ NetAudioServer::NetAudioServer(int numChannelsToSend, const juce::String &multic
                       remotePortNumber,
                       shouldDebug}),
         numChannels(numChannelsToSend),
-        fifo(numChannelsToSend) {
+        fifo(numChannelsToSend)
+{
 
-    receiveThread.onPeerConnected = [this]() {
-        juce::MessageManager::callAsync([this]() {
-            if (onPeerConnected != nullptr)
-                onPeerConnected();
-            if (onPeersChanged != nullptr)
-                onPeersChanged(getConnectedPeers());
-        });
+    receiveThread.onPeerConnected = [this]()
+    {
+        juce::MessageManager::callAsync([this]()
+                                        {
+                                            if (onPeerConnected != nullptr)
+                                                onPeerConnected();
+                                            if (onPeersChanged != nullptr)
+                                                onPeersChanged(getConnectedPeers());
+                                        });
     };
 
-    receiveThread.onPeerDisconnected = [this]() {
-        juce::MessageManager::callAsync([this]() {
-            if (onPeerDisconnected != nullptr)
-                onPeerDisconnected();
-            if (onPeersChanged != nullptr)
-                onPeersChanged(getConnectedPeers());
-        });
+    receiveThread.onPeerDisconnected = [this]()
+    {
+        juce::MessageManager::callAsync([this]()
+                                        {
+                                            if (onPeerDisconnected != nullptr)
+                                                onPeerDisconnected();
+                                            if (onPeersChanged != nullptr)
+                                                onPeersChanged(getConnectedPeers());
+                                        });
     };
 }
 
-NetAudioServer::~NetAudioServer() {
+NetAudioServer::~NetAudioServer()
+{
     releaseResources();
 //    socket->shutdown(); // TODO: shutdown in multicast socket class
 }
 
-void NetAudioServer::disconnect() {
+void NetAudioServer::disconnect()
+{
     // When first disconnecting, destroy the socket object and recreate it.
     // A DatagramSocket instance that has been shut down cannot be reused
     // (see DatagramSocket::shutdown()).
@@ -52,33 +59,48 @@ void NetAudioServer::disconnect() {
     sendThread.connected.set(false);
 }
 
-void NetAudioServer::prepareToSend(int samplesPerBlockExpected, double sampleRate) {
+void NetAudioServer::prepare(int samplesPerBlockExpected, double sampleRate)
+{
     samplesPerBlock = samplesPerBlockExpected;
-    fifo.setSize(samplesPerBlockExpected, 8);
+    fifo.setSize(samplesPerBlockExpected, 32);
 
     sendThread.prepareToSend(numChannels, samplesPerBlockExpected, sampleRate);
     receiveThread.prepareToReceive(numChannels, samplesPerBlockExpected, sampleRate);
+    firstSend = true;
 }
 
-void NetAudioServer::handleAudioBlock(const juce::AudioSourceChannelInfo &bufferToSend) {
-    const juce::ScopedLock sl{lock};
+void NetAudioServer::handleAudioBlock(const juce::AudioSourceChannelInfo &bufferToSend)
+{
+//    const juce::ScopedLock sl{lock};
 
     if (sendThread.connected.get()) {
-        fifo.write(bufferToSend.buffer);
+        fifo.write(bufferToSend.buffer, !firstSend);
+        firstSend = false;
 
-        // Replace buffer contents with return streams from peers.
-        auto ch{0};
-        for (auto &peer: peers) {
-            peer.second->getNextAudioBlock(*bufferToSend.buffer, ch, samplesPerBlock);
-            ch += 2;
+        if (!peers.empty()) {
+            // Replace buffer contents with return streams from peers.
+            // Sketchy if there's jitter on the return journey.
+            auto ch{2};
+            for (auto p{++peers.begin()}; p != peers.end(); ++p, ch += 2) {
+                p->second->getNextAudioBlock(*bufferToSend.buffer, ch, samplesPerBlock);
+            }
+            // Do the first peer last so the outgoing test signal doesn't get
+            // overwritten.
+            peers.begin()->second->getNextAudioBlock(*bufferToSend.buffer, 0, samplesPerBlock);
         }
+
+//        for (auto &peer: peers) {
+//            peer.second->getNextAudioBlock(*bufferToSend.buffer, ch, samplesPerBlock);
+//            ch += 2;
+//        }
     } else {
 //        DBG("NetAudioServer is not connected.");
 //        connectorThread.startThread();
     }
 }
 
-void NetAudioServer::releaseResources() {
+void NetAudioServer::releaseResources()
+{
     fifo.notify();
     if (sendThread.isThreadRunning()) {
         sendThread.stopThread(1000);
@@ -88,7 +110,8 @@ void NetAudioServer::releaseResources() {
     }
 }
 
-juce::StringArray &NetAudioServer::getConnectedPeers() {
+juce::StringArray &NetAudioServer::getConnectedPeers()
+{
     static juce::StringArray ips;
     ips.clear();
     for (const auto &p: peers) {
@@ -106,13 +129,9 @@ NetAudioServer::Sender::Sender(MulticastSocket::Params &socketParams,
         socket{std::make_unique<MulticastSocket>(MulticastSocket::Mode::WRITE, socketParams)},
         fifo{sharedFIFO} {}
 
-void NetAudioServer::Sender::run() {
+void NetAudioServer::Sender::run()
+{
     while (!threadShouldExit()) {
-        // Wait for notification from the audio thread.
-//        if (!wait(100)) {
-//            DBG("Sender thread wait timed out.\n");
-//        }
-
         // Read from the fifo into the packet.
         fifo.read(packet.getAudioData(), audioBlockSamples);
         // Write the header to the packet.
@@ -125,13 +144,15 @@ void NetAudioServer::Sender::run() {
     DBG("Stopping send thread");
 }
 
-void NetAudioServer::Sender::prepareToSend(int numChannelsToSend, int samplesPerBlockExpected, double sampleRate) {
+void NetAudioServer::Sender::prepareToSend(int numChannelsToSend, int samplesPerBlockExpected, double sampleRate)
+{
     packet.prepare(numChannelsToSend, samplesPerBlockExpected, sampleRate);
     audioBlockSamples = samplesPerBlockExpected;
     startTimer(1000);
 }
 
-void NetAudioServer::Sender::timerCallback() {
+void NetAudioServer::Sender::timerCallback()
+{
     if (socket->connect()) {
         DBG("Send thread connected.");
         connected.set(true);
@@ -149,10 +170,12 @@ NetAudioServer::Receiver::Receiver(MulticastSocket::Params &socketParams,
         juce::Thread("Receiver Thread"),
         socket(std::make_unique<MulticastSocket>(MulticastSocket::Mode::READ, socketParams)),
         peers(mapOfPeers),
-        debug(socketParams.debug) {
+        debug(socketParams.debug)
+{
 }
 
-void NetAudioServer::Receiver::prepareToReceive(int numChannelsToReceive, int samplesPerBlock, double sampleRate) {
+void NetAudioServer::Receiver::prepareToReceive(int numChannelsToReceive, int samplesPerBlock, double sampleRate)
+{
     // TODO: num channels may not actually match what's being sent by clients. Fix this.
     packet.prepare(numChannelsToReceive, samplesPerBlock, sampleRate);
     // Receive thread probably won't fail to connect as it's just listening... maybe check this.
@@ -165,7 +188,8 @@ void NetAudioServer::Receiver::prepareToReceive(int numChannelsToReceive, int sa
     }
 }
 
-void NetAudioServer::Receiver::run() {
+void NetAudioServer::Receiver::run()
+{
     auto handle{socket->getRawHandle()};
     const int maxEvents{10};
 #if JUCE_LINUX
@@ -194,7 +218,7 @@ void NetAudioServer::Receiver::run() {
     while (!threadShouldExit()) {
 #if JUCE_LINUX
         //        int numEvents = epoll_wait(epollfd, &event, 1, -1); // If using a single event.
-                int numEvents = epoll_wait(epollfd, events, maxEvents, 100);
+        int numEvents = epoll_wait(epollfd, events, maxEvents, 100);
 #elif JUCE_MAC
         int numEvents = kevent(kq, &change, 1, &event, maxEvents, &timeout);
 #endif
@@ -225,7 +249,7 @@ void NetAudioServer::Receiver::run() {
                 iter->second->handlePacket(packet);
 
                 if (debug && packet.getSeqNumber() % 10000 <= 1) {
-                    std::cout << "Connected peers:" << std::endl;
+                    std::cout << "Connected peers (" << peers.size() << "):" << std::endl;
                     for (auto &peer: peers) {
                         std::cout << peer.first << std::endl;
                     }
@@ -248,7 +272,8 @@ void NetAudioServer::Receiver::run() {
     DBG("Stopping receive thread");
 }
 
-void NetAudioServer::Receiver::timerCallback() {
+void NetAudioServer::Receiver::timerCallback()
+{
     // Check peer connectivity.
     for (auto it = peers.cbegin(), next = it; it != peers.cend(); it = next) {
         ++next;

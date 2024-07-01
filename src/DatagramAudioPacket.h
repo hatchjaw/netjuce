@@ -75,10 +75,10 @@ public:
     int getNumAudioChannels() const;
 
     /**
-     * Get the number of audio samples (well frames) in the packet.
+     * Get the number of audio frames in the packet.
      * @return
      */
-    int getNumSamples() const;
+    int getNumFrames() const;
 
     void parseHeader();
 

@@ -8,20 +8,20 @@ MainComponent::MainComponent(const StringArray &audioFilesToPlay)
         : multiChannelSource(std::make_unique<MultiChannelAudioSource>(NUM_SOURCES)),
           netServer(std::make_unique<NetAudioServer>()),
           audioFiles(audioFilesToPlay) {
-    setAudioChannels(0, NUM_SOURCES);
 
     juce::String typeNameToSet{""}, outputDeviceNameToSet{""};
     auto setup{deviceManager.getAudioDeviceSetup()};
     setup.bufferSize = AUDIO_BLOCK_SAMPLES;
+    setup.sampleRate = 44100;
 
     auto &deviceTypes{deviceManager.getAvailableDeviceTypes()};
-    for (auto type: deviceTypes) {
+    for (auto *type: deviceTypes) {
         auto typeName{type->getTypeName()};
 #if JUCE_JACK
         if (typeName == "JACK") {
             typeNameToSet = typeName;
-            outputDeviceNameToSet = "system";
-            break;
+            outputDeviceNameToSet = "Built-in Audio Analog Stereo";
+//            break;
         }
 #else
         if (typeName == "ALSA") {
@@ -39,9 +39,7 @@ MainComponent::MainComponent(const StringArray &audioFilesToPlay)
 #endif
     }
 
-    ready = true;
-
-    if (typeNameToSet != ""){
+    if (typeNameToSet != "") {
         deviceManager.setCurrentAudioDeviceType(typeNameToSet, true);
     }
 
@@ -49,7 +47,21 @@ MainComponent::MainComponent(const StringArray &audioFilesToPlay)
         setup.outputDeviceName = outputDeviceNameToSet;
     }
 
-    deviceManager.setAudioDeviceSetup(setup, true);
+    std::cout << "Applying setup — Output device: " << setup.outputDeviceName
+              << ", Sample rate: " << setup.sampleRate
+              << ", Buffer size: " << setup.bufferSize
+              << ", Output channels: " << setup.outputChannels.toInteger()
+              << "\n";
+
+    auto result{deviceManager.setAudioDeviceSetup(setup, true)};
+
+    if (result.isNotEmpty()) {
+        std::cerr << "Failed to set up audio device: \"" << result << "\"\n";
+    }
+
+    ready = true;
+
+    setAudioChannels(0, NUM_SOURCES);
 }
 
 MainComponent::~MainComponent() {
@@ -69,7 +81,9 @@ void MainComponent::prepareToPlay(int samplesPerBlockExpected, double sampleRate
         }
     }
 
-    netServer->prepareToSend(samplesPerBlockExpected, sampleRate);
+    netServer->prepare(samplesPerBlockExpected, sampleRate);
+
+    prepared = true;
 }
 
 void MainComponent::releaseResources() {
@@ -78,7 +92,7 @@ void MainComponent::releaseResources() {
 }
 
 void MainComponent::getNextAudioBlock(const juce::AudioSourceChannelInfo &bufferToFill) {
-    if (!ready) return;
+    if (!prepared) return;
 
     multiChannelSource->getNextAudioBlock(bufferToFill);
     netServer->handleAudioBlock(bufferToFill);
