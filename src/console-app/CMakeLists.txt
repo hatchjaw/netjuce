@@ -5,7 +5,7 @@ target_compile_definitions(njConsole
         PRIVATE
         JUCE_JACK=1
         JUCE_JACK_CLIENT_NAME="${PROJECT_NAME}"
-        AUDIO_BLOCK_SAMPLES=64
+        AUDIO_BLOCK_SAMPLES=32
         NUM_SOURCES=2
         DEFAULT_LOCAL_ADDRESS="192.168.10.10"
         DEFAULT_LOCAL_PORT=14841
